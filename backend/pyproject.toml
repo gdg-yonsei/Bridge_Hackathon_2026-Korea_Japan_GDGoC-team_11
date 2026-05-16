@@ -36,6 +36,9 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N"]
+# B008: FastAPI's Depends(...) is meant to be used as a default value.
+# N802: SessionLocal is a class-style factory name (SQLAlchemy convention).
+ignore = ["B008", "N802"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

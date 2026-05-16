@@ -2,7 +2,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, get_db
-from app.entity.diary_entry_entity import DiaryEntry, DiaryStatus
+from app.core.enums import DiaryStatus
+from app.entity.diary_entry_entity import DiaryEntry
 from app.entity.user_entity import User
 from app.models.diary import (
     DiaryAccepted,
@@ -62,7 +63,7 @@ def list_diary(
         DiaryListItem(
             entry_id=e.id,
             entry_date=e.entry_date,
-            primary_emotion=e.analysis.primary_emotion if e.analysis else None,
+            primary_emotion=e.primary_emotion,
             status=e.status,
         )
         for e in entries
@@ -75,7 +76,7 @@ def get_diary(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> DiaryEntry:
-    entry = DiaryRepository(db).get_with_relations(entry_id)
+    entry = DiaryRepository(db).get(entry_id)
     if entry is None or entry.user_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Diary not found")
     return entry
@@ -101,6 +102,7 @@ def update_diary(
     if content_changed:
         entry.content = payload.content  # type: ignore[assignment]
         entry.status = DiaryStatus.pending
+        repo.clear_analysis(entry)
 
     db.commit()
     db.refresh(entry)

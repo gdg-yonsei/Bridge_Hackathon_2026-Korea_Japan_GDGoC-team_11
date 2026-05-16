@@ -29,11 +29,11 @@ if settings.database_url:
 else:
     engine = None  # type: ignore[assignment]
 
-    def SessionLocal(*_args, **_kwargs) -> "Session":  # type: ignore[no-redef]
+    def SessionLocal(*_args, **_kwargs) -> Session:  # type: ignore[no-redef]
         raise RuntimeError(_MISSING_URL)
 
 
-def require_engine() -> "Engine":
+def require_engine() -> Engine:
     """Used by init_db / Alembic scripts. Raises clearly if the engine is missing."""
     if engine is None:
         raise RuntimeError(_MISSING_URL)

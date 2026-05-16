@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, get_db
@@ -6,7 +6,9 @@ from app.entity.user_entity import User
 from app.models.chat import (
     ChatMessageIn,
     ChatTurnResponse,
+    ConversationCreate,
     ConversationDetail,
+    ConversationSummary,
     MessageOut,
 )
 from app.repository.conversation_repo import ConversationRepository
@@ -16,64 +18,79 @@ from app.services.chatbot_service import send_message
 router = APIRouter()
 
 
-@router.post("/{diary_entry_id}", response_model=ChatTurnResponse)
-def chat(
-    diary_entry_id: int,
+@router.get("", response_model=list[ConversationSummary])
+def list_conversations(
+    diary_id: int | None = Query(
+        None, description="Optional filter — only conversations bound to this diary entry"
+    ),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[ConversationSummary]:
+    conversations = ConversationRepository(db).list_for_user(user.id, diary_entry_id=diary_id)
+    return [ConversationSummary.model_validate(c) for c in conversations]
+
+
+@router.post("", response_model=ConversationSummary, status_code=status.HTTP_201_CREATED)
+def create_conversation(
+    payload: ConversationCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ConversationSummary:
+    diary_id = payload.diary_entry_id
+    if diary_id is not None:
+        diary = DiaryRepository(db).get(diary_id)
+        if diary is None or diary.user_id != user.id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Diary not found")
+
+    conversation = ConversationRepository(db).create(
+        user.id, diary_entry_id=diary_id, title=payload.title
+    )
+    db.commit()
+    db.refresh(conversation)
+    return ConversationSummary.model_validate(conversation)
+
+
+@router.get("/{conversation_id}", response_model=ConversationDetail)
+def get_conversation(
+    conversation_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ConversationDetail:
+    conversation = ConversationRepository(db).get_with_messages(conversation_id)
+    if conversation is None or conversation.user_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Conversation not found")
+    return ConversationDetail.model_validate(conversation)
+
+
+@router.post("/{conversation_id}/messages", response_model=ChatTurnResponse)
+def post_message(
+    conversation_id: int,
     payload: ChatMessageIn,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ChatTurnResponse:
-    """이 일기에 대한 CBT 챗봇에 메시지 전송.
-
-    첫 호출 시 conversation 자동 생성. user 와 assistant 메시지를 모두 DB 에 저장
-    한 뒤 두 개 다 반환. 동기 호출 — vLLM 응답까지 1~3 초 정도 걸림.
-    """
-    conversation, user_msg, assistant_msg = send_message(
+    _conversation, user_msg, assistant_msg = send_message(
         db=db,
         user_id=user.id,
-        diary_entry_id=diary_entry_id,
+        conversation_id=conversation_id,
         user_message_text=payload.message,
     )
     return ChatTurnResponse(
-        conversation_id=conversation.id,
         user_message=MessageOut.model_validate(user_msg),
         assistant_message=MessageOut.model_validate(assistant_msg),
     )
 
 
-@router.get("/{diary_entry_id}", response_model=ConversationDetail)
-def get_chat_history(
-    diary_entry_id: int,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> ConversationDetail:
-    """이 일기의 대화 전체 히스토리. 대화가 아직 없으면 404."""
-    diary = DiaryRepository(db).get(diary_entry_id)
-    if diary is None or diary.user_id != user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Diary not found")
-
-    conversation = ConversationRepository(db).get_by_diary_entry(diary_entry_id)
-    if conversation is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, "No conversation yet for this diary"
-        )
-    return ConversationDetail.model_validate(conversation)
-
-
-@router.delete("/{diary_entry_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_chat(
-    diary_entry_id: int,
+@router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_conversation(
+    conversation_id: int,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> None:
-    """대화 삭제 (메시지 CASCADE)."""
-    diary = DiaryRepository(db).get(diary_entry_id)
-    if diary is None or diary.user_id != user.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Diary not found")
-
     conv_repo = ConversationRepository(db)
-    conversation = conv_repo.get_by_diary_entry(diary_entry_id)
-    if conversation is None:
-        return  # 이미 없음 — 204
+    conversation = conv_repo.get(conversation_id)
+    if conversation is None or conversation.user_id != user.id:
+        # Idempotent: 204 even if it's already gone.
+        return
     conv_repo.delete(conversation)
     db.commit()

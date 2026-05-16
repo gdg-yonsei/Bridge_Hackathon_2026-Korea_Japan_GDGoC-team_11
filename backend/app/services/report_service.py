@@ -1,16 +1,15 @@
-"""기간 리포트 생성 서비스.
+"""Period-report generation.
 
-흐름:
-  1. 해당 기간의 diary_entries + analyses 조회
-  2. Gemini 에 영어 프롬프트 전송 (구조화 응답 강제)
-  3. 결과를 reports 테이블에 upsert (같은 기간 재트리거 시 덮어쓰기)
-  4. ReportOut 반환
+Numbers (mood_chart, stats, dominant emotion) are computed app-side from the
+diary entries so they cannot diverge from the actual data. Gemini is only
+asked to produce a short narrative summary in second person.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+from collections import Counter
 from datetime import date
 from uuid import UUID
 
@@ -19,6 +18,7 @@ from google.genai import types
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.enums import Emotion
 from app.core.gemini_client import get_gemini_client
 from app.entity.diary_entry_entity import DiaryEntry
 from app.entity.report_entity import Report
@@ -29,15 +29,31 @@ from app.repository.report_repo import ReportRepository
 logger = logging.getLogger(__name__)
 
 
+_EMOTIONS: tuple[str, ...] = ("joy", "sad", "anger", "anxiety", "calm")
+
 SYSTEM_INSTRUCTION = """\
 You are an empathetic journaling companion. Given a user's diary entries over
-a date range, produce a concise emotional report.
+a date range, write a concise emotional summary of the period.
 
-Return JSON matching the provided schema. Use ONLY the emotion labels
-joy, sad, anger, anxiety, calm. The summary should be 3-5 sentences,
-written in the second person ("You felt...", "You navigated...").
-mood_chart keys must be ISO date strings (YYYY-MM-DD) for days that had a diary entry.
+Constraints:
+- 3-5 sentences, written in the second person ("You felt...", "You navigated...").
+- No numerical claims — do not invent or quote intensities.
+- Focus on patterns and shifts rather than restating individual entries.
+- Respond in JSON matching the provided schema.
 """
+
+
+def _intensities_of(entry: DiaryEntry) -> dict[str, int] | None:
+    values = {
+        "joy": entry.joy_intensity,
+        "sad": entry.sad_intensity,
+        "anger": entry.anger_intensity,
+        "anxiety": entry.anxiety_intensity,
+        "calm": entry.calm_intensity,
+    }
+    if any(v is None for v in values.values()):
+        return None
+    return values  # type: ignore[return-value]
 
 
 def _build_user_prompt(diaries: list[DiaryEntry], start: date, end: date) -> str:
@@ -46,38 +62,48 @@ def _build_user_prompt(diaries: list[DiaryEntry], start: date, end: date) -> str
         title = d.title or "(no title)"
         lines.append(f"## {d.entry_date.isoformat()} — {title}")
         lines.append(d.content)
-        if d.analysis is not None:
-            lines.append(
-                f"(analyzed emotion: {d.analysis.primary_emotion.value}; "
-                f"summary: {d.analysis.summary})"
-            )
+        if d.primary_emotion is not None and d.emotion_summary:
+            lines.append(f"(primary: {d.primary_emotion.value}; {d.emotion_summary})")
         lines.append("")
     return "\n".join(lines)
 
 
-def generate_report(
-    db: Session,
-    user_id: UUID,
-    period_start: date,
-    period_end: date,
-) -> Report:
-    if period_end < period_start:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            "period_end must be >= period_start",
-        )
+def _aggregate(
+    diaries: list[DiaryEntry],
+) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, float | int]], Emotion]:
+    """Returns (mood_chart, stats, dominant_emotion)."""
+    mood_chart: dict[str, dict[str, int]] = {}
+    analysed: list[DiaryEntry] = []
+    for d in diaries:
+        ints = _intensities_of(d)
+        if ints is None:
+            continue
+        mood_chart[d.entry_date.isoformat()] = ints
+        analysed.append(d)
 
-    diaries = DiaryRepository(db).list_by_user_and_range(
-        user_id, period_start, period_end
+    stats: dict[str, dict[str, float | int]] = {}
+    primary_counts: Counter[str] = Counter(
+        d.primary_emotion.value for d in analysed if d.primary_emotion is not None
     )
-    if not diaries:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            "No diary entries found in this period",
-        )
+    for emo in _EMOTIONS:
+        values = [_intensities_of(d)[emo] for d in analysed]  # type: ignore[index]
+        if not values:
+            stats[emo] = {"avg": 0.0, "peak": 0, "days": 0}
+            continue
+        stats[emo] = {
+            "avg": round(sum(values) / len(values), 2),
+            "peak": max(values),
+            "days": primary_counts.get(emo, 0),
+        }
 
-    user_prompt = _build_user_prompt(diaries, period_start, period_end)
+    if primary_counts:
+        dominant_name, _ = primary_counts.most_common(1)[0]
+    else:
+        dominant_name = max(_EMOTIONS, key=lambda e: stats[e]["avg"])
+    return mood_chart, stats, Emotion(dominant_name)
 
+
+def _call_gemini_for_summary(user_prompt: str) -> str:
     try:
         client = get_gemini_client()
         response = client.models.generate_content(
@@ -97,7 +123,6 @@ def generate_report(
             f"Report generation failed: {e}",
         ) from e
 
-    # SDK 가 parsed 객체를 주거나, 안 주면 text 를 직접 파싱.
     parsed: ReportLLMResult | None = getattr(response, "parsed", None)
     if parsed is None:
         try:
@@ -107,14 +132,39 @@ def generate_report(
                 status.HTTP_502_BAD_GATEWAY,
                 "Gemini returned malformed JSON",
             ) from e
+    return parsed.summary
+
+
+def generate_report(
+    db: Session,
+    user_id: UUID,
+    period_start: date,
+    period_end: date,
+) -> Report:
+    if period_end < period_start:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "period_end must be >= period_start",
+        )
+
+    diaries = DiaryRepository(db).list_by_user_and_range(user_id, period_start, period_end)
+    if not diaries:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            "No diary entries found in this period",
+        )
+
+    mood_chart, stats, dominant = _aggregate(diaries)
+    summary = _call_gemini_for_summary(_build_user_prompt(diaries, period_start, period_end))
 
     report = ReportRepository(db).upsert(
         user_id=user_id,
         period_start=period_start,
         period_end=period_end,
-        dominant_emotion=parsed.dominant_emotion,
-        summary=parsed.summary,
-        mood_chart=parsed.mood_chart,
+        dominant_emotion=dominant,
+        summary=summary,
+        mood_chart=mood_chart,
+        stats=stats,
         model_name=settings.gemini_model,
     )
     db.commit()
