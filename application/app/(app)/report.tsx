@@ -90,6 +90,8 @@ export default function ReportScreen() {
         >
           <Menu.Item onPress={() => { setMenuVisible(false); router.replace('/'); }} title="Calendar" leadingIcon="calendar" />
           <Divider />
+          <Menu.Item onPress={() => { setMenuVisible(false); router.push('/chat'); }} title="Chat" leadingIcon="chat-outline" />
+          <Divider />
           <Menu.Item onPress={() => setMenuVisible(false)} title="Report" leadingIcon="chart-bar" />
         </Menu>
 
