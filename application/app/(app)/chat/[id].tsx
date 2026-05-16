@@ -226,10 +226,9 @@ export default function ChatRoomScreen() {
             contentContainerStyle={[styles.messageList, messages.length === 0 && { flex: 1 }]}
             onContentSizeChange={scrollToEnd}
             ListEmptyComponent={<EmptyState onSuggestion={text => setInput(text)} />}
+            ListFooterComponent={sending ? <TypingDots /> : null}
             renderItem={({ item }) => <Bubble item={item} />}
           />
-
-          {sending && <TypingDots />}
 
           {/* ── Input bar ──────────────────────────── */}
           <View style={[styles.inputBar, { borderTopColor: theme.colors.surfaceVariant, borderTopWidth: 1, backgroundColor: theme.colors.surface }]}>
