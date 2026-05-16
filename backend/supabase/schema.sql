@@ -113,15 +113,47 @@ create table if not exists public.reports (
 create index if not exists ix_reports_user_id on public.reports (user_id);
 
 -- =====================================================================
--- 7. Row-Level Security
+-- 7. conversations + messages — CBT 챗봇 (vLLM/CBT-Copilot 호출 결과 저장)
+-- =====================================================================
+create table if not exists public.conversations (
+  id              bigserial primary key,
+  user_id         uuid not null references public.profiles(id) on delete cascade,
+  diary_entry_id  bigint not null unique references public.diary_entries(id) on delete cascade,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+
+create index if not exists ix_conversations_user_id on public.conversations (user_id);
+
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'message_role') then
+    create type public.message_role as enum ('user', 'assistant', 'system');
+  end if;
+end$$;
+
+create table if not exists public.messages (
+  id              bigserial primary key,
+  conversation_id bigint not null references public.conversations(id) on delete cascade,
+  role            message_role not null,
+  content         text not null,
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists ix_messages_conversation_id on public.messages (conversation_id);
+
+-- =====================================================================
+-- 8. Row-Level Security
 --    "사용자는 자기 데이터만 본다" — 핵심 격리는 DB가 처리.
 --    백엔드는 service_role 키로 우회 가능, 일반 anon/authenticated 키는 RLS 적용.
 -- =====================================================================
-alter table public.profiles            enable row level security;
-alter table public.diary_entries       enable row level security;
-alter table public.emotion_analyses    enable row level security;
+alter table public.profiles             enable row level security;
+alter table public.diary_entries        enable row level security;
+alter table public.emotion_analyses     enable row level security;
 alter table public.song_recommendations enable row level security;
-alter table public.reports             enable row level security;
+alter table public.reports              enable row level security;
+alter table public.conversations        enable row level security;
+alter table public.messages             enable row level security;
 
 -- 본인 프로필만 read/update
 drop policy if exists "profiles: self read"   on public.profiles;
@@ -160,3 +192,26 @@ create policy "report: self read"  on public.reports
   for select using (auth.uid() = user_id);
 create policy "report: self write" on public.reports
   for insert with check (auth.uid() = user_id);
+
+-- 본인 대화만 CRUD
+drop policy if exists "conv: self all" on public.conversations;
+create policy "conv: self all" on public.conversations
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 메시지는 부모 대화의 user 가 본인일 때만 read/write
+drop policy if exists "msg: self read"  on public.messages;
+drop policy if exists "msg: self write" on public.messages;
+create policy "msg: self read" on public.messages
+  for select using (
+    exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id and c.user_id = auth.uid()
+    )
+  );
+create policy "msg: self write" on public.messages
+  for insert with check (
+    exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id and c.user_id = auth.uid()
+    )
+  );

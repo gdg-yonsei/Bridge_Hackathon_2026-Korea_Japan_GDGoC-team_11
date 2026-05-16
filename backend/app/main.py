@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, diary, report
+from app.api import auth, chat, diary, report
 
 app = FastAPI(title="GDGoC Team 1 Backend", version="0.1.0")
 
@@ -15,6 +15,7 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(diary.router, prefix="/diary", tags=["diary"])
+app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(report.router, prefix="/reports", tags=["reports"])
 
 

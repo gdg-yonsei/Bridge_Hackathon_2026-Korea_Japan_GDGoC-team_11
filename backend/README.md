@@ -198,6 +198,63 @@ curl -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
 
 ---
 
+### `POST /chat/{diary_entry_id}`
+
+이 일기에 대한 CBT 챗봇에 메시지 전송. 첫 호출 시 conversation 자동 생성.
+**vLLM (CBT-Copilot)** 동기 호출 — 응답까지 1~3초.
+
+**Request** — `ChatMessageIn`
+```json
+{ "message": "I keep replaying the conversation from this morning..." }
+```
+
+**Response 200** — `ChatTurnResponse`
+```json
+{
+  "conversation_id": 7,
+  "user_message": {
+    "role": "user",
+    "content": "I keep replaying the conversation from this morning...",
+    "created_at": "2026-05-16T13:01:22Z"
+  },
+  "assistant_message": {
+    "role": "assistant",
+    "content": "That sounds exhausting. What specifically do you find yourself replaying...",
+    "created_at": "2026-05-16T13:01:25Z"
+  }
+}
+```
+
+**Error 상태**
+- `404` — 해당 일기 없음 또는 본인 소유 아님
+- `502` — vLLM 서버 연결 실패 / 빈 응답
+
+### `GET /chat/{diary_entry_id}`
+
+대화 전체 히스토리 (오래된 → 최신 순).
+
+**Response 200** — `ConversationDetail`
+```json
+{
+  "id": 7,
+  "diary_entry_id": 42,
+  "created_at": "2026-05-16T13:00:00Z",
+  "updated_at": "2026-05-16T13:01:25Z",
+  "messages": [
+    { "role": "user", "content": "...", "created_at": "..." },
+    { "role": "assistant", "content": "...", "created_at": "..." }
+  ]
+}
+```
+
+**Error 404** — 아직 대화가 없거나 일기 없음.
+
+### `DELETE /chat/{diary_entry_id}`
+
+대화 삭제 (메시지 CASCADE). 이미 없어도 **204**.
+
+---
+
 ### `POST /reports`
 
 기간(시작일·종료일)을 받아 Gemini 가 즉시 리포트를 생성. 동기 호출이라 응답까지
@@ -251,6 +308,10 @@ curl -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
 | `EmotionAnalysisOut` | 〃 | `DiaryDetail.analysis` |
 | `EmotionScores` | 〃 | 5개 감정 점수 (합 1.0) |
 | `SongRecOut` | [models/song.py](app/models/song.py) | `DiaryDetail.songs` 항목 |
+| `ChatMessageIn` | [models/chat.py](app/models/chat.py) | `POST /chat/{id}` 요청 |
+| `MessageOut` | 〃 | 메시지 단건 |
+| `ChatTurnResponse` | 〃 | `POST /chat/{id}` 응답 (user+assistant 2개) |
+| `ConversationDetail` | 〃 | `GET /chat/{id}` 응답 |
 | `ReportCreate` | [models/report.py](app/models/report.py) | `POST /reports` 요청 |
 | `ReportOut` | 〃 | `POST /reports` 응답 |
 | `ReportLLMResult` | 〃 | Gemini 구조화 출력 강제용 (내부) |
@@ -259,6 +320,7 @@ curl -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
 
 - `DiaryStatus`: `pending` · `analyzing` · `done` · `failed`
 - `Emotion`: `joy` · `sad` · `anger` · `anxiety` · `calm`
+- `MessageRole`: `user` · `assistant` · `system`
 
 ---
 
@@ -291,9 +353,18 @@ public.profiles
    │      │     │ primary_emotion (enum), scores (jsonb), summary
    │      │     │ model_name, raw_response (jsonb)
    │      │
-   │      └──< public.song_recommendations (1:N)
-   │            │ entry_id (FK)
-   │            │ rank, title, artist, reason, external_url
+   │      ├──< public.song_recommendations (1:N)
+   │      │     │ entry_id (FK)
+   │      │     │ rank, title, artist, reason, external_url
+   │      │
+   │      └──< public.conversations (1:1, UNIQUE diary_entry_id)
+   │            │ id (bigserial, PK)
+   │            │ user_id (uuid, FK→profiles.id)
+   │            │ created_at, updated_at
+   │            │
+   │            └──< public.messages (1:N)
+   │                  │ conversation_id (FK)
+   │                  │ role (enum: user/assistant/system), content, created_at
    │
    └──< public.reports
           │ id (bigserial, PK)
@@ -346,6 +417,23 @@ public.profiles
 | `reason` | text | nullable | |
 | `external_url` | varchar(500) | nullable | Spotify/YouTube 링크 |
 
+#### `public.conversations`
+| 컬럼 | 타입 | 제약 | 비고 |
+|---|---|---|---|
+| `id` | bigserial | PK | |
+| `user_id` | uuid | FK→`profiles.id`, indexed | |
+| `diary_entry_id` | bigint | FK→`diary_entries.id`, **UNIQUE**, indexed | 일기당 1개 |
+| `created_at`, `updated_at` | timestamptz | server defaults | |
+
+#### `public.messages`
+| 컬럼 | 타입 | 제약 | 비고 |
+|---|---|---|---|
+| `id` | bigserial | PK | |
+| `conversation_id` | bigint | FK→`conversations.id`, indexed | |
+| `role` | `message_role` enum | NOT NULL | user/assistant/system |
+| `content` | text | NOT NULL | |
+| `created_at` | timestamptz | default `now()` | 정렬 키 |
+
 #### `public.reports`
 | 컬럼 | 타입 | 제약 | 비고 |
 |---|---|---|---|
@@ -371,6 +459,8 @@ public.profiles
 | `songs: self read` | `song_recommendations` | SELECT | 〃 |
 | `report: self read` | `reports` | SELECT | `auth.uid() = user_id` |
 | `report: self write` | `reports` | INSERT | `auth.uid() = user_id` |
+| `conv: self all` | `conversations` | ALL | `auth.uid() = user_id` |
+| `msg: self read/write` | `messages` | SELECT/INSERT | parent conversation 의 user_id == `auth.uid()` |
 
 > `service_role` 키로 접속하면 RLS 우회 — 백엔드 admin 작업(분석 결과 INSERT 등)에서 사용.
 
@@ -385,6 +475,7 @@ backend/
 │   ├── api/                     # 라우터 (얇게 유지)
 │   │   ├── auth.py              #   GET/PATCH /me
 │   │   ├── diary.py             #   POST/GET/PUT/DELETE /diary, /reanalyze
+│   │   ├── chat.py              #   POST/GET/DELETE /chat/{diary_entry_id}
 │   │   └── report.py            #   POST /reports
 │   ├── core/
 │   │   ├── config.py            # Pydantic Settings (.env 로딩)
@@ -401,20 +492,24 @@ backend/
 │   │   ├── diary_entry_entity.py
 │   │   ├── emotion_analysis_entity.py
 │   │   ├── song_recommendation_entity.py
+│   │   ├── conversation_entity.py
+│   │   ├── message_entity.py
 │   │   └── report_entity.py
 │   ├── models/                  # Pydantic DTO
-│   │   ├── user.py · diary.py · emotion.py · song.py · report.py
+│   │   ├── user.py · diary.py · emotion.py · song.py · chat.py · report.py
 │   ├── repository/              # SQLAlchemy CRUD 추상화
 │   │   ├── base_repo.py
 │   │   ├── user_repo.py              # upsert_from_supabase
 │   │   ├── diary_repo.py
 │   │   ├── emotion_repo.py
 │   │   ├── song_repo.py
+│   │   ├── conversation_repo.py      # get_or_create_for_diary
 │   │   └── report_repo.py            # upsert (regenerate)
 │   └── services/
-│       ├── diary_service.py     # 분석 트리거 (현재 stub)
-│       ├── report_service.py    # Gemini 리포트 생성 오케스트레이션
-│       └── chat_service/        # LangGraph 자리 (graph/prompts/types)
+│       ├── diary_service.py     # 일기 분석 트리거 (vLLM 미연동 stub)
+│       ├── chatbot_service.py   # CBT-Copilot 멀티턴 대화 오케스트레이션
+│       ├── report_service.py    # Gemini 리포트 생성
+│       └── chat_service/        # LangGraph 자리 (분석 파이프라인용)
 ├── supabase/
 │   └── schema.sql               # 테이블 + 트리거 + RLS (Dashboard에 붙여넣기)
 ├── .env.example
@@ -435,9 +530,9 @@ uv add --dev <package>                        # dev 그룹
 
 ## 현재 미구현 (TBD)
 
-- [ ] vLLM 연결 — `services/diary_service.py` 가 placeholder 반환 중
-- [ ] LangGraph 노드 — `services/chat_service/graph.py` 자리만 있음
-- [ ] CBT-Copilot 챗봇 (대화 기능, 라우터 자체가 아직 없음)
-- [x] **Gemini 리포트 — 연동 완료** (`POST /reports`, GEMINI_API_KEY 필요)
-- [ ] 노래 추천 데이터 출처 결정
-- [ ] 감정 분류 모델 결정
+- [x] **CBT-Copilot 챗봇** — `POST /chat/{diary_entry_id}` 연동 완료
+      (`VLLM_BASE_URL` 가 가리키는 곳에 `thillaic/CBT-Copilot` 떠있어야 함)
+- [x] **Gemini 리포트** — 연동 완료 (`POST /reports`, GEMINI_API_KEY 필요)
+- [ ] 일기 감정 분석 — `services/diary_service.py` 가 placeholder 반환 중
+      (모델 결정 후 LangGraph 노드 구현 필요)
+- [ ] 노래 추천 — 데이터 출처 결정 (LLM 텍스트 / Spotify / YouTube)
