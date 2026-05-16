@@ -1,10 +1,9 @@
-"""CBT chatbot orchestration — synchronous vLLM (CBT-Copilot, OpenAI-compatible) call.
+"""Chatbot orchestration — Gemini conversational turn.
 
 A conversation is created up-front via the chat router (`POST /conversations`).
 This service takes an existing conversation id, appends the new user message,
-calls the LLM, appends the assistant reply, and returns the two new messages.
-
-Latency: ~1-3s for a 3B model.
+calls Gemini with the running history, appends the assistant reply, and returns
+the two new messages.
 """
 
 from __future__ import annotations
@@ -13,59 +12,51 @@ import logging
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from google.genai import types
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.enums import MessageRole
-from app.core.llm_client import get_llm_client
+from app.core.gemini_client import get_gemini_client
 from app.entity.conversation_entity import Conversation
 from app.entity.diary_entry_entity import DiaryEntry
 from app.entity.message_entity import Message
 from app.repository.conversation_repo import ConversationRepository
 from app.repository.diary_repo import DiaryRepository
+from app.services.prompts import SOLIS_CHAT_SYSTEM
 
 logger = logging.getLogger(__name__)
 
 
-_STANDALONE_SYSTEM_PROMPT = (
-    "You are a compassionate Cognitive Behavioral Therapy companion. "
-    "Reflect with the user using CBT techniques: validate emotions, gently "
-    "identify cognitive distortions, and ask Socratic questions to help "
-    "reframe negative patterns. Keep responses concise (2-4 sentences). "
-    "Do not diagnose or prescribe medication."
-)
-
-
 def _build_system_prompt(diary: DiaryEntry | None) -> str:
     if diary is None:
-        return _STANDALONE_SYSTEM_PROMPT
+        return SOLIS_CHAT_SYSTEM
     title = diary.title or "(no title)"
     return (
-        "You are a compassionate Cognitive Behavioral Therapy companion. "
-        "The user has written this diary entry:\n\n"
+        f"{SOLIS_CHAT_SYSTEM}\n\n"
+        "The user has written this diary entry:\n"
         "---\n"
         f"Date: {diary.entry_date.isoformat()}\n"
         f"Title: {title}\n"
         "Content:\n"
         f"{diary.content}\n"
-        "---\n\n"
-        "Reflect with the user using CBT techniques: validate emotions, gently "
-        "identify cognitive distortions, and ask Socratic questions to help "
-        "reframe negative patterns. Keep responses concise (2-4 sentences). "
-        "Do not diagnose or prescribe medication."
+        "---\n"
     )
 
 
-def _build_llm_messages(
-    conversation: Conversation, diary: DiaryEntry | None
-) -> list[dict[str, str]]:
-    payload: list[dict[str, str]] = [{"role": "system", "content": _build_system_prompt(diary)}]
+# Gemini uses "user" and "model" as turn roles.
+_ROLE_MAP = {MessageRole.user: "user", MessageRole.assistant: "model"}
+
+
+def _build_history(conversation: Conversation) -> list[types.Content]:
+    history: list[types.Content] = []
     for m in conversation.messages:
-        # Stored system messages are ignored; the system prompt is rebuilt every turn.
-        if m.role == MessageRole.system:
+        role = _ROLE_MAP.get(m.role)
+        if role is None:
+            # Stored system messages are folded into system_instruction.
             continue
-        payload.append({"role": m.role.value, "content": m.content})
-    return payload
+        history.append(types.Content(role=role, parts=[types.Part.from_text(text=m.content)]))
+    return history
 
 
 def send_message(
@@ -90,17 +81,19 @@ def send_message(
     conversation.messages.append(user_msg)
     db.flush()
 
-    llm_payload = _build_llm_messages(conversation, diary)
+    history = _build_history(conversation)
     try:
-        response = get_llm_client().chat.completions.create(
-            model=settings.vllm_model,
-            messages=llm_payload,
-            temperature=0.7,
-            max_tokens=512,
+        response = get_gemini_client().models.generate_content(
+            model=settings.gemini_model,
+            contents=history,
+            config=types.GenerateContentConfig(
+                system_instruction=_build_system_prompt(diary),
+                temperature=0.7,
+            ),
         )
-        assistant_text = (response.choices[0].message.content or "").strip()
+        assistant_text = (response.text or "").strip()
     except Exception as e:
-        logger.exception("LLM call failed for conversation %s", conversation_id)
+        logger.exception("Gemini call failed for conversation %s", conversation_id)
         db.rollback()
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,

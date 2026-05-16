@@ -9,6 +9,7 @@ from app.entity.conversation_entity import Conversation
 from app.entity.diary_entry_entity import DiaryEntry
 from app.entity.message_entity import Message
 from app.entity.report_entity import Report
+from app.entity.therapist_entity import Therapist
 from app.entity.user_entity import User
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "DiaryEntry",
     "Message",
     "Report",
+    "Therapist",
     "User",
 ]

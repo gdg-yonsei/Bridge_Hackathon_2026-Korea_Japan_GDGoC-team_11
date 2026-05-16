@@ -18,7 +18,7 @@ from google.genai import types
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.enums import Emotion
+from app.core.enums import EMOTIONS, Emotion
 from app.core.gemini_client import get_gemini_client
 from app.entity.diary_entry_entity import DiaryEntry
 from app.entity.report_entity import Report
@@ -28,8 +28,6 @@ from app.repository.report_repo import ReportRepository
 
 logger = logging.getLogger(__name__)
 
-
-_EMOTIONS: tuple[str, ...] = ("joy", "sad", "anger", "anxiety", "calm")
 
 SYSTEM_INSTRUCTION = """\
 You are an empathetic journaling companion. Given a user's diary entries over
@@ -43,17 +41,14 @@ Constraints:
 """
 
 
-def _intensities_of(entry: DiaryEntry) -> dict[str, int] | None:
-    values = {
-        "joy": entry.joy_intensity,
-        "sad": entry.sad_intensity,
-        "anger": entry.anger_intensity,
-        "anxiety": entry.anxiety_intensity,
-        "calm": entry.calm_intensity,
-    }
-    if any(v is None for v in values.values()):
+def _scores_of(entry: DiaryEntry) -> dict[str, float] | None:
+    """Return the full 9-emotion score dict, or None if not yet analysed.
+
+    Defaults missing emotions to 0.0 so charts can assume all 9 keys exist.
+    """
+    if entry.scores is None:
         return None
-    return values  # type: ignore[return-value]
+    return {emo: float(entry.scores.get(emo, 0.0)) for emo in EMOTIONS}
 
 
 def _build_user_prompt(diaries: list[DiaryEntry], start: date, end: date) -> str:
@@ -70,36 +65,36 @@ def _build_user_prompt(diaries: list[DiaryEntry], start: date, end: date) -> str
 
 def _aggregate(
     diaries: list[DiaryEntry],
-) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, float | int]], Emotion]:
+) -> tuple[dict[str, dict[str, float]], dict[str, dict[str, float | int]], Emotion]:
     """Returns (mood_chart, stats, dominant_emotion)."""
-    mood_chart: dict[str, dict[str, int]] = {}
-    analysed: list[DiaryEntry] = []
+    mood_chart: dict[str, dict[str, float]] = {}
+    analysed: list[tuple[DiaryEntry, dict[str, float]]] = []
     for d in diaries:
-        ints = _intensities_of(d)
-        if ints is None:
+        scores = _scores_of(d)
+        if scores is None:
             continue
-        mood_chart[d.entry_date.isoformat()] = ints
-        analysed.append(d)
+        mood_chart[d.entry_date.isoformat()] = scores
+        analysed.append((d, scores))
 
     stats: dict[str, dict[str, float | int]] = {}
     primary_counts: Counter[str] = Counter(
-        d.primary_emotion.value for d in analysed if d.primary_emotion is not None
+        d.primary_emotion.value for d, _ in analysed if d.primary_emotion is not None
     )
-    for emo in _EMOTIONS:
-        values = [_intensities_of(d)[emo] for d in analysed]  # type: ignore[index]
+    for emo in EMOTIONS:
+        values = [scores[emo] for _, scores in analysed]
         if not values:
-            stats[emo] = {"avg": 0.0, "peak": 0, "days": 0}
+            stats[emo] = {"avg": 0.0, "peak": 0.0, "days": 0}
             continue
         stats[emo] = {
-            "avg": round(sum(values) / len(values), 2),
-            "peak": max(values),
+            "avg": round(sum(values) / len(values), 3),
+            "peak": round(max(values), 3),
             "days": primary_counts.get(emo, 0),
         }
 
     if primary_counts:
         dominant_name, _ = primary_counts.most_common(1)[0]
     else:
-        dominant_name = max(_EMOTIONS, key=lambda e: stats[e]["avg"])
+        dominant_name = max(EMOTIONS, key=lambda e: stats[e]["avg"])
     return mood_chart, stats, Emotion(dominant_name)
 
 

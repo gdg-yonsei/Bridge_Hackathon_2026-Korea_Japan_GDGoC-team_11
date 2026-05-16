@@ -8,32 +8,14 @@ import logging
 from google.genai import types
 
 from app.core.config import settings
-from app.core.enums import DiaryStatus, Emotion
+from app.core.enums import DiaryStatus
 from app.core.gemini_client import get_gemini_client
 from app.db.database import SessionLocal
 from app.models.diary import DiaryAnalysisLLMResult
 from app.repository.diary_repo import DiaryRepository
+from app.services.prompts import CLASSIFY_EMOTION_SYSTEM
 
 logger = logging.getLogger(__name__)
-
-
-_SYSTEM_INSTRUCTION = """\
-You are an expert emotion analyst. Given a diary entry, rate the writer's
-felt intensity for each of five emotions on a 1..10 scale.
-
-Rules:
-- Rate each of joy / sad / anger / anxiety / calm independently — multiple
-  emotions can be high at the same time. There is no normalisation across
-  emotions; do NOT make the five values sum to anything in particular.
-- 1 means the emotion is barely present in the entry; 10 means overwhelming.
-- summary must be a single concise sentence describing the overall emotional tone.
-- Respond in JSON matching the provided schema.
-"""
-
-
-def _argmax_emotion(intensities: dict[str, int]) -> Emotion:
-    name, _ = max(intensities.items(), key=lambda kv: kv[1])
-    return Emotion(name)
 
 
 def _call_gemini(title: str | None, content: str, entry_date: str) -> DiaryAnalysisLLMResult:
@@ -43,7 +25,7 @@ def _call_gemini(title: str | None, content: str, entry_date: str) -> DiaryAnaly
         model=settings.gemini_model,
         contents=prompt,
         config=types.GenerateContentConfig(
-            system_instruction=_SYSTEM_INSTRUCTION,
+            system_instruction=CLASSIFY_EMOTION_SYSTEM,
             response_mime_type="application/json",
             response_schema=DiaryAnalysisLLMResult,
             temperature=0.4,
@@ -56,11 +38,7 @@ def _call_gemini(title: str | None, content: str, entry_date: str) -> DiaryAnaly
 
 
 def trigger_analysis(entry_id: int) -> None:
-    """FastAPI BackgroundTasks entry point.
-
-    Opens its own DB session, always closes it.
-    Marks entry status='failed' on any exception.
-    """
+    """FastAPI BackgroundTasks entry point."""
     db = SessionLocal()
     try:
         diary_repo = DiaryRepository(db)
@@ -78,21 +56,25 @@ def trigger_analysis(entry_id: int) -> None:
             entry_date=entry.entry_date.isoformat(),
         )
 
-        intensities = {
-            "joy": result.joy,
-            "sad": result.sad,
-            "anger": result.anger,
-            "anxiety": result.anxiety,
-            "calm": result.calm,
-        }
+        # Safety net — override Gemini if a crisis phrase is detected. The model
+        # is correct most of the time, but high-recall keyword matching is the
+        # backstop we don't want to compromise on.
+        if _check_crisis_keywords(entry.content):
+            result.needs_hotline = True
+            result.crisis_score = max(result.crisis_score, 0.9)
+            logger.warning("Crisis keyword override applied for entry %s", entry_id)
+
         diary_repo.save_analysis(
             entry,
-            primary_emotion=_argmax_emotion(intensities),
-            intensities=intensities,
+            primary_emotion=result.primary_emotion,
+            scores=result.scores.model_dump(),
             summary=result.summary,
             model_name=settings.gemini_model,
             raw_response=result.model_dump(mode="json"),
-            # Song recommendations are deferred — leave the column as-is.
+            crisis_score=result.crisis_score,
+            solis_message=result.solis_message,
+            suggested_action=result.suggested_action,
+            needs_hotline=result.needs_hotline,
             songs=None,
         )
 
@@ -115,3 +97,54 @@ def _safe_mark_failed(db, entry_id: int) -> None:
             db.commit()
     except Exception:
         logger.exception("could not mark entry %s as failed", entry_id)
+
+
+# Tuned for high-recall on first-person crisis intent while avoiding the worst
+# false positives (e.g. "last day of school", "I can't go on vacation").
+CRISIS_KEYWORDS = (
+    # suicidal ideation
+    "want to die",
+    "wanna die",
+    "end my life",
+    "kill myself",
+    "killing myself",
+    "take my own life",
+    "don't want to live",
+    "dont want to live",
+    "no reason to live",
+    "not worth living",
+    "better off dead",
+    "better off without me",
+    # self harm
+    "hurt myself",
+    "hurting myself",
+    "cut myself",
+    "cutting myself",
+    "harm myself",
+    "harming myself",
+    # hopelessness — 1st-person prefixed to avoid benign matches
+    "no point in living",
+    "i can't go on",
+    "i cannot go on",
+    "i cant go on",
+    "give up on life",
+    "giving up on life",
+    "want to disappear",
+    "nobody would miss me",
+    "no one would miss me",
+    "world is better without me",
+    # crisis signals
+    "goodbye forever",
+    "final goodbye",
+    "my last day on earth",
+    "won't be here tomorrow",
+)
+
+
+def _check_crisis_keywords(text: str) -> bool:
+    text_lower = text.lower()
+    for keyword in CRISIS_KEYWORDS:
+        if keyword in text_lower:
+            logger.warning("CRISIS KEYWORD DETECTED: '%s' found in entry", keyword)
+            return True
+    return False
