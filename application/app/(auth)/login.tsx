@@ -15,7 +15,7 @@ export default function LoginScreen() {
   const signInWithGoogle = async () => {
     setLoading(true);
     try {
-      const redirectTo = Linking.createURL('/');
+      const redirectTo = 'bridge:///';
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -29,9 +29,18 @@ export default function LoginScreen() {
       if (!data.url) throw new Error('OAuth URL을 받지 못했습니다.');
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      console.log('[OAuth] result type:', result.type);
 
       if (result.type === 'success') {
-        await supabase.auth.exchangeCodeForSession(result.url);
+        const fragment = result.url.split('#')[1] ?? '';
+        const params = new URLSearchParams(fragment);
+        const access_token = params.get('access_token');
+        const refresh_token = params.get('refresh_token');
+
+        if (access_token && refresh_token) {
+          const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+          if (error) throw error;
+        }
       }
     } catch (e) {
       console.error('Google 로그인 실패:', e);

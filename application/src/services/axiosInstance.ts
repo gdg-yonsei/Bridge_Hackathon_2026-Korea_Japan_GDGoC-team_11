@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { secureStorage } from './secureStorage';
+import { supabase } from '@/lib/supabase';
 
 export const axiosInstance = axios.create({
   baseURL: process.env.EXPO_PUBLIC_API_URL,
@@ -8,8 +8,10 @@ export const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use(async (config) => {
-  const token = await secureStorage.getAccessToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    config.headers.Authorization = `Bearer ${session.access_token}`;
+  }
   return config;
 });
 
@@ -19,11 +21,9 @@ axiosInstance.interceptors.response.use(
     const original = error.config;
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
-      const refresh = await secureStorage.getRefreshToken();
-      if (refresh) {
-        const { data } = await axiosInstance.post('/auth/refresh', { refreshToken: refresh });
-        await secureStorage.setTokens(data.accessToken, data.refreshToken);
-        original.headers.Authorization = `Bearer ${data.accessToken}`;
+      const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+      if (!refreshError && session?.access_token) {
+        original.headers.Authorization = `Bearer ${session.access_token}`;
         return axiosInstance(original);
       }
     }

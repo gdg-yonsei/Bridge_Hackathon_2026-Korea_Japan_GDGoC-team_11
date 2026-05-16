@@ -1,7 +1,8 @@
 import { ScrollView, StyleSheet } from 'react-native';
 import { Button, Divider, Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { useAuth } from '@/context/AuthContext';
 
 const PAGES = [
@@ -12,11 +13,33 @@ const PAGES = [
 export default function DebugScreen() {
   const theme = useTheme();
   const { user, signOut } = useAuth();
+  const params = useLocalSearchParams();
+  const url = Linking.useURL();
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text variant="headlineSmall" style={styles.heading}>🛠 Debug</Text>
+
+        <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
+          Raw URL (Linking.useURL)
+        </Text>
+        <Text variant="bodySmall" selectable style={styles.mono}>
+          {url ?? '(없음)'}
+        </Text>
+
+        <Divider style={styles.divider} />
+
+        <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
+          Query Params (useLocalSearchParams)
+        </Text>
+        <Text variant="bodySmall" selectable style={styles.mono}>
+          {Object.keys(params).length
+            ? JSON.stringify(params, null, 2)
+            : '(없음)'}
+        </Text>
+
+        <Divider style={styles.divider} />
 
         <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
           Auth
@@ -67,6 +90,7 @@ const styles = StyleSheet.create({
   scroll: { padding: 24, gap: 8 },
   heading: { fontWeight: 'bold', marginBottom: 8 },
   info: { marginBottom: 4 },
+  mono: { fontFamily: 'monospace', marginBottom: 4 },
   item: { marginVertical: 2 },
   divider: { marginVertical: 12 },
 });
