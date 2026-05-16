@@ -3,11 +3,12 @@ import {
   View, StyleSheet, FlatList, Pressable, ActivityIndicator, ScrollView,
 } from 'react-native';
 import {
-  Text, useTheme, Menu, Divider, Surface, Chip, Button, Modal, Portal,
+  Text, useTheme, Surface, Chip, Button, Modal, Portal,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
+import { AppHeader, AppHeaderBg } from '@/components/AppHeader';
 import { therapistService } from '@/services/therapistService';
 import type { Therapist, TherapistFilter } from '@/types/therapist';
 
@@ -254,7 +255,6 @@ function FilterSheet({ visible, initial, onApply, onDismiss }: FilterSheetProps)
 
 export default function TherapistsScreen() {
   const theme = useTheme();
-  const [menuVisible, setMenuVisible] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
 
   const [country, setCountry] = useState<Country>(undefined);
@@ -299,34 +299,10 @@ export default function TherapistsScreen() {
 
   return (
     <Screen
-      background={<View style={[styles.headerBg, { backgroundColor: theme.colors.primary }]} />}
+      background={<AppHeaderBg />}
       edges={['top', 'left', 'right']}
     >
-      {/* ── Header ─────────────────────────────────────── */}
-      <View style={[styles.header, { backgroundColor: theme.colors.primary, justifyContent: 'space-between' }]}>
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={
-            <Pressable onPress={() => setMenuVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text variant="titleLarge" style={{ fontWeight: '700', color: '#fff' }}>Therapists</Text>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#fff" />
-            </Pressable>
-          }
-        >
-          <Menu.Item onPress={() => { setMenuVisible(false); router.replace('/'); }} title="Calendar" leadingIcon="calendar" />
-          <Divider />
-          <Menu.Item onPress={() => { setMenuVisible(false); router.push('/chat'); }} title="Chat" leadingIcon="chat-outline" />
-          <Divider />
-          <Menu.Item onPress={() => { setMenuVisible(false); router.push('/report'); }} title="Report" leadingIcon="chart-bar" />
-          <Divider />
-          <Menu.Item onPress={() => setMenuVisible(false)} title="Therapists" leadingIcon="account-heart-outline" />
-        </Menu>
-
-        <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#fff" />
-        </Pressable>
-      </View>
+      <AppHeader currentRoute="therapists" />
 
       {/* ── Quick filter bar ───────────────────────────── */}
       <View style={[styles.filterBar, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.surfaceVariant, borderBottomWidth: 1 }]}>
@@ -431,7 +407,6 @@ export default function TherapistsScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  headerBg: { height: 80 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -71,6 +71,7 @@ export default function WriteScreen() {
       } else {
         Alert.alert('Error', 'Failed to save diary entry. Please try again.');
       }
+    } finally {
       setSaving(false);
     }
   };
