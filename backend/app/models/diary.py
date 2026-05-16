@@ -34,7 +34,7 @@ class DiaryUpdate(BaseModel):
 
 
 class DiaryAccepted(BaseModel):
-    """POST /diary 의 202 응답."""
+    """202 response for POST /diary."""
 
     entry_id: int
     entry_date: date
@@ -42,7 +42,7 @@ class DiaryAccepted(BaseModel):
 
 
 class DiaryListItem(BaseModel):
-    """캘린더 월간 뷰용 — 1일 1개."""
+    """Calendar monthly view — one entry per day."""
 
     entry_id: int
     entry_date: date
@@ -53,7 +53,7 @@ class DiaryListItem(BaseModel):
 
 
 class DiaryDetail(BaseModel):
-    """GET /diary/{id} — 분석 결과 포함 단건."""
+    """GET /diary/{id} — single entry with analysis result."""
 
     id: int
     entry_date: date

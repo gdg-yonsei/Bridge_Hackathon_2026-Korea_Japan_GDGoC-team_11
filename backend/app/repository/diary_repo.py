@@ -54,7 +54,7 @@ class DiaryRepository(BaseRepository[DiaryEntry]):
     def list_by_user_and_range(
         self, user_id: UUID, start: date, end: date
     ) -> list[DiaryEntry]:
-        """주간 리포트 등에서 [start, end] 양끝 포함 범위 조회."""
+        """Inclusive [start, end] range query used by reports."""
         stmt = (
             select(DiaryEntry)
             .where(

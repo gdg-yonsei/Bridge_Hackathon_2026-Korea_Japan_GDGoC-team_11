@@ -1,8 +1,9 @@
-"""Supabase JWT 검증 유틸.
+"""Supabase JWT verification utility.
 
-Supabase가 발급한 access token 은 HS256 으로 서명되어 있고,
-서명 키는 Settings → API → JWT Secret 에서 가져온다.
-페이로드에는 `sub` (UUID, auth.users.id), `email`, `role`, `aud="authenticated"`, `exp` 등이 들어있다.
+Supabase access tokens are signed with HS256.
+The signing key comes from Settings → API → JWT Secret.
+The payload contains `sub` (UUID = auth.users.id), `email`, `role`,
+`aud="authenticated"`, `exp`, and other standard claims.
 """
 
 from dataclasses import dataclass
@@ -18,7 +19,7 @@ SUPABASE_AUDIENCE = "authenticated"
 
 @dataclass(frozen=True)
 class SupabaseClaims:
-    """검증된 Supabase JWT 의 핵심 필드."""
+    """Key fields extracted from a verified Supabase JWT."""
 
     user_id: UUID
     email: str | None
@@ -26,9 +27,9 @@ class SupabaseClaims:
 
 
 def verify_supabase_token(token: str) -> SupabaseClaims | None:
-    """Supabase JWT 를 검증하고 핵심 클레임을 반환. 실패 시 None."""
+    """Verify a Supabase JWT and return the core claims. Returns None on failure."""
     if not settings.supabase_jwt_secret:
-        # 설정 누락 — 호출자가 401 로 응답하게 None 반환
+        # Missing config — let the caller respond with 401.
         return None
 
     try:

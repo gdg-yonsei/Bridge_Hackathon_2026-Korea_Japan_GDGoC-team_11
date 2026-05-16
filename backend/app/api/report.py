@@ -15,9 +15,9 @@ def create_report(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> ReportOut:
-    """기간을 받아 Gemini 로 리포트 생성 — 동기 호출이라 응답까지 수 초 걸림.
+    """Generate a report for the given date range via Gemini — synchronous, expect a few seconds.
 
-    같은 (user, period_start, period_end) 로 재호출하면 결과를 덮어쓴다.
+    Re-calling with the same (user, period_start, period_end) overwrites the previous result.
     """
     report = generate_report(
         db=db,

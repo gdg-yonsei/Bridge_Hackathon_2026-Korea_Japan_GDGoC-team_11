@@ -1,14 +1,14 @@
-"""테이블 생성 헬퍼.
+"""Table creation helper.
 
-운영에서는 backend/supabase/schema.sql 을 Supabase SQL Editor 에 붙여넣는
-방식을 사용하지만, 빠른 로컬 부트스트랩이 필요할 때만 이걸로 create_all 실행.
+In production, apply backend/supabase/schema.sql via the Supabase SQL Editor.
+Use this only for quick local bootstrapping when you need create_all.
 
-실행:
+Run:
     uv run python -m app.db.init_db
 """
 
 from app.db.database import require_engine
-from app.entity import Base  # noqa: F401 — 모든 엔티티가 mapper 에 등록되도록
+from app.entity import Base  # noqa: F401 — ensures all entities are registered with the mapper
 
 
 def init_db() -> None:
@@ -17,4 +17,4 @@ def init_db() -> None:
 
 if __name__ == "__main__":
     init_db()
-    print("DB 테이블 생성 완료.")
+    print("DB tables created.")

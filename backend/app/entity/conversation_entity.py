@@ -10,7 +10,7 @@ from app.entity.base_entity import Base
 
 
 class Conversation(Base):
-    """CBT 챗봇 대화 — 일기 1건당 정확히 1개 (UNIQUE diary_entry_id)."""
+    """CBT chatbot conversation — exactly one per diary entry (UNIQUE diary_entry_id)."""
 
     __tablename__ = "conversations"
 

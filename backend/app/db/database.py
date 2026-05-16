@@ -1,8 +1,8 @@
 """Lazy SQLAlchemy engine + session factory.
 
-엔진 생성을 import 시점에서 지연시킨다 — DATABASE_URL 이 비어 있어도
-앱이 부팅되어 /health, /docs 가 동작하도록 하기 위함. DB 가 실제로
-필요한 엔드포인트만 500 으로 명확한 에러를 낸다.
+Engine creation is deferred from import time so the app can boot
+(serving /health and /docs) even when DATABASE_URL is empty.
+Only endpoints that actually need the DB will fail with a clear error.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ else:
 
 
 def require_engine() -> "Engine":
-    """init_db / Alembic 등 스크립트에서 사용. 엔진이 없으면 명확히 에러."""
+    """Used by init_db / Alembic scripts. Raises clearly if the engine is missing."""
     if engine is None:
         raise RuntimeError(_MISSING_URL)
     return engine

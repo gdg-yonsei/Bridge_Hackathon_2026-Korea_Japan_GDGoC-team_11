@@ -8,10 +8,10 @@ T = TypeVar("T", bound=Base)
 
 
 class BaseRepository(Generic[T]):
-    """SQLAlchemy 2.0 세션 기반 공통 CRUD.
+    """Common CRUD over a SQLAlchemy 2.0 session.
 
-    서브클래스는 `model: type[T]`만 지정하면 됨.
-    트랜잭션 커밋은 호출자(서비스 or get_db 의존성) 책임.
+    Subclasses only need to declare `model: type[T]`.
+    Transaction commits are the caller's responsibility (service layer or get_db dependency).
     """
 
     model: type[T]

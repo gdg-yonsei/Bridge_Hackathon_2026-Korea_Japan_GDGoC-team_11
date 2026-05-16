@@ -19,7 +19,7 @@ class ReportRepository(BaseRepository[Report]):
         period_end: date,
         **fields: Any,
     ) -> Report:
-        """같은 기간을 재트리거하면 결과를 덮어쓰기 (regenerate semantics)."""
+        """Overwrite the existing report if the same period is triggered again."""
         stmt = (
             pg_insert(Report)
             .values(

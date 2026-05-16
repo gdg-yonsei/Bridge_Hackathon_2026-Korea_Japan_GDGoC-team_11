@@ -4,7 +4,7 @@ from app.entity.emotion_analysis_entity import Emotion
 
 
 class EmotionScores(BaseModel):
-    """감정별 점수. 합은 1.0이 되도록 LLM 단에서 정규화."""
+    """Per-emotion scores normalised to sum to 1.0 by the LLM."""
 
     joy: float = Field(0.0, ge=0.0, le=1.0)
     sad: float = Field(0.0, ge=0.0, le=1.0)
@@ -14,7 +14,7 @@ class EmotionScores(BaseModel):
 
 
 class EmotionResult(BaseModel):
-    """LLM 구조화 출력 강제용 — vLLM guided_json 입력 스키마."""
+    """Schema for enforcing LLM structured output (vLLM guided_json)."""
 
     primary_emotion: Emotion
     scores: EmotionScores
@@ -22,7 +22,7 @@ class EmotionResult(BaseModel):
 
 
 class EmotionAnalysisOut(BaseModel):
-    """API 응답용."""
+    """API response schema."""
 
     primary_emotion: Emotion
     scores: dict[str, float]

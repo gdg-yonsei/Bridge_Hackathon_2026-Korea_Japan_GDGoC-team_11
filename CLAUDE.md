@@ -1,131 +1,113 @@
 # CLAUDE.md
 
-이 파일은 Claude Code가 본 저장소에서 작업할 때 반드시 참고해야 하는
-프로젝트 컨텍스트와 규칙을 담습니다.
+This file contains the project context and rules Claude Code must follow when working in this repository.
 
-## 프로젝트 개요
+## Project Overview
 
-- **이름**: 미정 (Bridge Hackathon 2026 · Korea·Japan GDGoC Team 1)
-- **도메인**: 감정 일기장 — 사용자가 일기를 쓰면 vLLM이 감정을 분석하고
-  캘린더에 색으로 표시, 요약·노래 추천·주간 리포트를 자동 생성하는 서비스.
-- **상세 설계**: [PLAN.md](PLAN.md) 참고. 데이터 모델, LangGraph 구성,
-  API 엔드포인트, 프론트 페이지 구조가 모두 그 안에 있음.
+- **Name**: TBD (Bridge Hackathon 2026 · Korea·Japan GDGoC Team 1)
+- **Domain**: Emotion diary — users write diary entries, the backend classifies emotions with Gemini, displays them on a calendar with colour coding, and auto-generates summaries, song recommendations, and period reports.
+- **Detailed design**: See [PLAN.md](PLAN.md) for the data model, LangGraph setup, API endpoints, and frontend page structure.
 
-## 기술 스택
+## Tech Stack
 
-| 영역 | 기술 |
+| Layer | Technology |
 |---|---|
 | Backend | FastAPI · SQLAlchemy 2.0 · Pydantic v2 · LangGraph |
-| LLM (챗봇) | **CBT-Copilot** (`thillaic/CBT-Copilot`, Llama-3.2-3B-Instruct LoRA) via vLLM |
-| LLM (주간 리포트) | **Gemini API** (`gemini-2.5-flash`) |
-| LLM (감정 분류) | TBD — 사용자 탐색 중 |
+| LLM (chatbot) | **CBT-Copilot** (`thillaic/CBT-Copilot`, Llama-3.2-3B-Instruct LoRA) via vLLM |
+| LLM (reports) | **Gemini API** (`gemini-2.5-flash`) |
+| LLM (emotion classification) | **Gemini API** (`gemini-2.5-flash`) |
 | DB · Auth | **Supabase** (Postgres + Auth + Realtime) |
-| 언어 | **영어** (사용자 입력, 프롬프트 모두 영어) |
+| Language | **English** (all user input and prompts) |
 | Frontend | Next.js 14 (App Router) · TypeScript · TailwindCSS · `@supabase/supabase-js` |
-| Infra | Docker Compose · uv (Python 의존성 관리) |
+| Infra | Docker Compose · uv (Python dependency management) |
 
-## 도메인 모델 요약
+## Domain Model Summary
 
 ```
 users ── diary_entries ── emotion_analyses (1:1)
                        └─ song_recommendations (1:N)
-       └─ weekly_reports
+       └─ reports
 ```
 
-상세 컬럼은 [PLAN.md §3](PLAN.md#3-데이터-모델) 참고.
+See [PLAN.md §3](PLAN.md#3-데이터-모델) for full column definitions.
 
-## 디렉터리 컨벤션
+## Directory Conventions
 
-- `backend/app/entity/` — SQLAlchemy ORM 클래스 (DB 매핑)
-- `backend/app/models/` — Pydantic 스키마 (API DTO)
-- `backend/app/repository/` — ORM 기반 CRUD 추상화
-- `backend/app/services/` — 비즈니스 로직, 외부 API, LLM 호출
-- `backend/app/services/chat_service/` — LangGraph 그래프 정의 (감정 분석 그래프)
-- `backend/app/api/` — HTTP 라우팅 (얇게 유지)
-- `backend/app/worker/` — 백그라운드 잡 (분석 트리거, 주간 리포트 생성)
+- `backend/app/entity/` — SQLAlchemy ORM classes (DB mapping)
+- `backend/app/models/` — Pydantic schemas (API DTOs)
+- `backend/app/repository/` — ORM-based CRUD abstraction
+- `backend/app/services/` — Business logic, external APIs, LLM calls
+- `backend/app/api/` — HTTP routing (keep thin)
+- `backend/app/worker/` — Background jobs (analysis trigger, report generation)
 
-## Supabase 운영 규칙
+## Supabase Rules
 
-- **회원가입/로그인은 프론트엔드가 직접** `@supabase/supabase-js` 로 처리.
-  백엔드는 절대 비밀번호를 다루지 않음 (`/auth/signup`, `/auth/login` 엔드포인트 없음).
-- 프론트는 Supabase access_token 을 `Authorization: Bearer <token>` 으로 백엔드에 전달.
-- 백엔드는 [core/security.py](backend/app/core/security.py) 의 `verify_supabase_token`
-  으로 HS256 JWT 를 검증 (서명 키 = `SUPABASE_JWT_SECRET`).
-- 검증 후 [core/dependencies.py](backend/app/core/dependencies.py) `get_current_user`
-  가 `public.profiles` 행을 upsert — Supabase `auth.users.id` (UUID) 와 동일한 PK.
-- 모든 사용자 식별자(`user_id`)는 **UUID** (Integer 아님). entity / repository /
-  route 시그니처 모두 UUID 로 통일.
-- **Row-Level Security (RLS)** 를 모든 사용자 데이터 테이블에 적용. 백엔드 라우터의
-  `entry.user_id != user.id` 같은 수동 체크는 보조 안전장치일 뿐, 1차 격리는 DB가 함.
-- 서비스 롤 키 (`SUPABASE_SERVICE_ROLE_KEY`) 는 백엔드만 보유, 절대 프론트/깃에 노출 금지.
+- **Sign-up / login is handled entirely by the frontend** via `@supabase/supabase-js`. The backend never touches passwords (no `/auth/signup` or `/auth/login` endpoints).
+- The frontend passes the Supabase `access_token` as `Authorization: Bearer <token>` to the backend.
+- The backend verifies the HS256 JWT in [core/security.py](backend/app/core/security.py) using `SUPABASE_JWT_SECRET`.
+- After verification, [core/dependencies.py](backend/app/core/dependencies.py) `get_current_user` upserts a `public.profiles` row — same PK as `auth.users.id` (UUID).
+- All `user_id` fields are **UUID** (not integer). entity / repository / route signatures must all use UUID.
+- **Row-Level Security (RLS)** is enabled on all user data tables. Manual checks like `entry.user_id != user.id` in routers are a secondary safeguard only — the DB enforces isolation.
+- The service role key (`SUPABASE_SERVICE_ROLE_KEY`) is held by the backend only — never expose it to the frontend or commit it to git.
 
-## 작업 규칙 (반드시 지킬 것)
+## Work Rules (must follow)
 
-### ❌ Linear 사용 금지
+### ❌ Linear is forbidden
 
-**리니어(Linear)로 어떤 것도 생성하지 말 것.** 이슈, 프로젝트, 브랜치, 코멘트,
-라벨, 사이클 등 일체의 생성·저장 동작 금지. 우회로(외부 API, MCP 도구 등)도
-사용 금지.
+**Never create anything in Linear.** No issues, projects, branches, comments, labels, or cycles. No workarounds via external APIs or MCP tools.
 
-- `mcp__claude_ai_Linear__save_*`, `create_*` 류 도구 호출 절대 금지
-- 브랜치는 항상 git 로컬로만 (`git checkout -b ...`)
-- 사용자가 "리니어에 만들어"라고 **명시적으로** 요청하지 않는 한 어떤 경우에도
-  Linear에 쓰는 작업을 시도하지 말 것
-- 단순 조회(`get_*`, `list_*`)도 사용자가 먼저 요청했을 때만 허용
+- Never call `mcp__claude_ai_Linear__save_*` or `create_*` tools
+- Always create branches locally with `git checkout -b ...`
+- Do not attempt any write operation in Linear unless the user **explicitly** requests it
+- Even read-only calls (`get_*`, `list_*`) are only allowed when the user asks first
 
-### 의존성·환경
+### Dependencies & Environment
 
-- Python 의존성은 `backend/pyproject.toml` + `uv`로만 관리 (pip 직접 사용 X)
-- 새 의존성 추가: `cd backend && uv add <pkg>` / dev는 `uv add --dev <pkg>`
-- 코드 실행: `cd backend && uv run uvicorn app.main:app --reload`
-- 의존성 바꾸면 `uv.lock`도 함께 커밋
+- Python dependencies: `backend/pyproject.toml` + `uv` only (no direct `pip`)
+- Add a dependency: `cd backend && uv add <pkg>` / dev: `uv add --dev <pkg>`
+- Run the server: `cd backend && uv run uvicorn app.main:app --reload`
+- Commit `uv.lock` whenever dependencies change
 
-### 코드 스타일
+### Code Style
 
-- 백엔드 포맷·린트: `uv run ruff format . && uv run ruff check --fix .`
-- 함수·변수는 snake_case, 클래스는 PascalCase (Python)
-- TypeScript는 카멜케이스, 컴포넌트는 PascalCase, 파일명은 kebab-case
-- 주석은 *왜*만 적기. 코드가 이미 설명하는 *무엇*은 적지 말 것.
+- Backend format & lint: `uv run ruff format . && uv run ruff check --fix .`
+- Functions & variables: `snake_case`; classes: `PascalCase` (Python)
+- TypeScript: camelCase; components: PascalCase; filenames: kebab-case
+- Comments: write the *why* only — never the *what* (the code already says that)
 
-### LLM 호출 규칙
+### LLM Call Rules
 
-- LLM 직접 호출은 `services/chat_service/` 안에서만
-- 라우터(`api/`)에서 LLM 호출 금지 — 반드시 서비스 계층 경유
-- 감정 분류 등 구조화 출력이 필요한 호출은 반드시 JSON 스키마 강제
-  (`response_format` 또는 vLLM의 `guided_json`) → Pydantic 검증 → DB 저장
+- All LLM calls must go through the service layer (`services/`)
+- Never call LLMs directly from routers (`api/`)
+- Structured outputs (emotion classification etc.) must enforce a JSON schema (`response_format` or vLLM `guided_json`) → Pydantic validation → DB persist
 
-### 비동기 처리
+### Async Processing
 
-- 일기 분석은 항상 비동기 (`POST /diary`는 즉시 `202` 반환,
-  LangGraph는 백그라운드 실행)
-- 동기로 묶지 말 것 — vLLM 응답 지연으로 UX가 망가짐
+- Diary analysis is always async (`POST /diary` returns `202` immediately; analysis runs in the background)
+- Never block the request thread on LLM calls — response latency will break UX
 
-## 결정된 항목
+## Decided
 
-| # | 항목 | 결정 |
+| # | Item | Decision |
 |---|---|---|
-| 2 | vLLM 호스팅 | 별도 컨테이너 또는 외부 GPU 서버 (compose 에서 제거됨) |
-| 3 | vLLM 모델 (챗봇) | **`thillaic/CBT-Copilot`** (Llama-3.2-3B 기반 CBT LoRA) |
-| 4 | 분석 트리거 | **`BackgroundTasks`** (Celery 전환 시 `services/diary_service.py` 만 수정) |
-| 8 | 인증 | **Supabase Auth** (자체 JWT 제거) |
-| - | 주간 리포트 LLM | **Gemini API** (`gemini-2.5-flash`) |
-| - | DB | **Supabase Postgres** (로컬 db 컨테이너 제거) |
-| - | 언어 | **영어** (사용자 입력 / 프롬프트 모두) |
+| 2 | vLLM hosting | Separate container or external GPU server (removed from compose) |
+| 3 | vLLM model (chatbot) | **`thillaic/CBT-Copilot`** (Llama-3.2-3B CBT LoRA) |
+| 4 | Analysis trigger | **`BackgroundTasks`** (swap to Celery by modifying `services/diary_analysis_service.py` only) |
+| 8 | Auth | **Supabase Auth** (custom JWT removed) |
+| - | Report LLM | **Gemini API** (`gemini-2.5-flash`) |
+| - | Emotion classification LLM | **Gemini API** (`gemini-2.5-flash`) |
+| - | DB | **Supabase Postgres** (local DB container removed) |
+| - | Language | **English** (all user input / prompts) |
 
-## 결정 대기 중인 항목
+## Pending Decisions
 
-1. festival/seoul_event 기존 legacy 코드 일괄 삭제 시점
-2. 감정 분류 모델 (사용자 탐색 중 — CBT-Copilot 와 같은 프로세스에서 돌릴지, 별도 분류기를 둘지)
-3. 진행 상태 전달 (폴링 / SSE / **Supabase Realtime** 가 유력)
-4. 노래 데이터 출처 (LLM 텍스트 / Spotify / YouTube)
-5. 일기 수정 시 재분석 정책
+1. Song recommendations data source (LLM text / Spotify / YouTube)
+2. Real-time analysis progress delivery (polling / SSE / **Supabase Realtime** preferred)
+3. Re-analysis policy when a diary entry is edited
 
-## 빠른 명령어 참조
+## Quick Command Reference
 
 ```bash
-make up               # 전체 스택 기동
-make backend-sync     # uv sync (의존성 설치)
-make backend-dev      # 백엔드 dev 서버
-make frontend-dev     # 프론트 dev 서버
-make fmt              # ruff 포맷+린트
+make backend   # build + run + stream logs
+make down      # stop server
 ```

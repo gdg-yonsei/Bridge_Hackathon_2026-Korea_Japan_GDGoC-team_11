@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserOut(BaseModel):
-    """GET /auth/me 응답 — 백엔드가 보관하는 profile 정보."""
+    """Response for GET /auth/me — profile fields stored by the backend."""
 
     id: UUID
     email: str | None = None
@@ -16,6 +16,6 @@ class UserOut(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    """PATCH /auth/me 요청 — 닉네임 등 앱 도메인 필드 변경."""
+    """Request body for PATCH /auth/me — update app-domain fields like nickname."""
 
     nickname: str | None = Field(None, min_length=1, max_length=50)

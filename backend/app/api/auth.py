@@ -1,8 +1,9 @@
-"""인증 라우터.
+"""Auth router.
 
-회원가입/로그인은 Supabase Auth 가 프론트엔드에서 직접 처리한다
-(`@supabase/supabase-js` 의 `signUp` / `signInWithPassword`).
-백엔드는 토큰 검증만 담당하므로 여기엔 사용자 식별 / 프로필 갱신 정도만 둔다.
+Sign-up and login are handled entirely by the frontend via Supabase Auth
+(`signUp` / `signInWithPassword` from `@supabase/supabase-js`).
+The backend only verifies tokens, so this router is limited to identity
+retrieval and profile updates.
 """
 
 from fastapi import APIRouter, Depends

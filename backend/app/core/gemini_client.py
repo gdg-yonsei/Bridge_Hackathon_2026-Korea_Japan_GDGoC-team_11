@@ -1,7 +1,8 @@
-"""Gemini API 클라이언트 팩토리.
+"""Gemini API client factory.
 
-주간/기간 리포트 생성에 사용. google-genai SDK 사용 — Vertex 아님, Google AI Studio 키.
-구조화 출력(`response_schema`) 지원하므로 ReportLLMResult Pydantic 으로 직접 디코딩 가능.
+Used for emotion classification and period report generation.
+Uses the google-genai SDK (Google AI Studio key, not Vertex AI).
+Supports structured output via `response_schema` for direct Pydantic decoding.
 """
 
 from functools import lru_cache
@@ -15,6 +16,6 @@ from app.core.config import settings
 def get_gemini_client() -> genai.Client:
     if not settings.gemini_api_key:
         raise RuntimeError(
-            "GEMINI_API_KEY is empty. 발급: https://aistudio.google.com/apikey"
+            "GEMINI_API_KEY is empty. Get a key at https://aistudio.google.com/apikey"
         )
     return genai.Client(api_key=settings.gemini_api_key)

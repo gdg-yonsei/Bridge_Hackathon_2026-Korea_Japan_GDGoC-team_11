@@ -14,7 +14,7 @@ class EmotionRepository(BaseRepository[EmotionAnalysis]):
         return self.session.scalars(stmt).one_or_none()
 
     def upsert(self, entry_id: int, **fields: Any) -> EmotionAnalysis:
-        """분석 재실행 시 기존 결과를 덮어쓰기 위한 upsert."""
+        """Upsert so re-running analysis overwrites the previous result."""
         existing = self.get_by_entry(entry_id)
         if existing is not None:
             for key, value in fields.items():

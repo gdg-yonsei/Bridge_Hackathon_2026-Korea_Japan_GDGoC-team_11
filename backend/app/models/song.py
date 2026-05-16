@@ -12,7 +12,7 @@ class SongRecOut(BaseModel):
 
 
 class SongRecCreate(BaseModel):
-    """LangGraph 노드가 추천 결과를 만들 때 사용."""
+    """Used when a service node creates a song recommendation."""
 
     rank: int
     title: str

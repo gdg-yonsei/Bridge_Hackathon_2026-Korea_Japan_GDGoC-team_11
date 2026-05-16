@@ -1,6 +1,6 @@
--- Supabase 초기 스키마 + RLS.
--- 적용 방법: Supabase Dashboard → SQL Editor 에 통째로 붙여넣고 Run.
--- 멱등하게 작성해두었으니 여러 번 실행해도 안전.
+-- Supabase initial schema + RLS.
+-- Apply: Supabase Dashboard → SQL Editor → paste and Run.
+-- Idempotent — safe to run multiple times.
 
 -- =====================================================================
 -- 1. enums
@@ -16,7 +16,7 @@ begin
 end$$;
 
 -- =====================================================================
--- 2. profiles (auth.users 와 1:1)
+-- 2. profiles (1:1 with auth.users)
 -- =====================================================================
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
@@ -25,7 +25,7 @@ create table if not exists public.profiles (
   created_at  timestamptz not null default now()
 );
 
--- auth.users insert 시 자동으로 profiles 행 만들기 (백엔드 upsert 안 거쳐도 OK)
+-- Auto-create a profiles row whenever a new auth.users row is inserted.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -94,8 +94,8 @@ create table if not exists public.song_recommendations (
 create index if not exists ix_song_recs_entry_id on public.song_recommendations (entry_id);
 
 -- =====================================================================
--- 6. reports — 사용자가 기간 (start/end) 주면 Gemini 가 즉시 생성.
---    같은 기간 재트리거 시 upsert (regenerate).
+-- 6. reports — generated on demand for a given (start, end) range.
+--    Re-triggering the same period upserts (regenerates) the report.
 -- =====================================================================
 create table if not exists public.reports (
   id                bigserial primary key,
@@ -113,7 +113,7 @@ create table if not exists public.reports (
 create index if not exists ix_reports_user_id on public.reports (user_id);
 
 -- =====================================================================
--- 7. conversations + messages — CBT 챗봇 (vLLM/CBT-Copilot 호출 결과 저장)
+-- 7. conversations + messages — CBT chatbot (stores vLLM/CBT-Copilot results)
 -- =====================================================================
 create table if not exists public.conversations (
   id              bigserial primary key,
@@ -144,8 +144,8 @@ create index if not exists ix_messages_conversation_id on public.messages (conve
 
 -- =====================================================================
 -- 8. Row-Level Security
---    "사용자는 자기 데이터만 본다" — 핵심 격리는 DB가 처리.
---    백엔드는 service_role 키로 우회 가능, 일반 anon/authenticated 키는 RLS 적용.
+--    Users see only their own data — isolation enforced at the DB level.
+--    Backend can bypass with the service_role key; anon/authenticated keys respect RLS.
 -- =====================================================================
 alter table public.profiles             enable row level security;
 alter table public.diary_entries        enable row level security;
@@ -155,18 +155,18 @@ alter table public.reports              enable row level security;
 alter table public.conversations        enable row level security;
 alter table public.messages             enable row level security;
 
--- 본인 프로필만 read/update
+-- Own profile: read/update only
 drop policy if exists "profiles: self read"   on public.profiles;
 drop policy if exists "profiles: self update" on public.profiles;
 create policy "profiles: self read"   on public.profiles for select using (auth.uid() = id);
 create policy "profiles: self update" on public.profiles for update using (auth.uid() = id);
 
--- 본인 일기만 CRUD
+-- Own diary entries: full CRUD
 drop policy if exists "diary: self all" on public.diary_entries;
 create policy "diary: self all" on public.diary_entries
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- 본인 일기의 분석/노래만 조회
+-- Own diary analyses/songs: read only
 drop policy if exists "analysis: self read" on public.emotion_analyses;
 create policy "analysis: self read" on public.emotion_analyses
   for select using (
@@ -185,7 +185,7 @@ create policy "songs: self read" on public.song_recommendations
     )
   );
 
--- 본인 리포트만 조회/생성
+-- Own reports: read/insert
 drop policy if exists "report: self read"  on public.reports;
 drop policy if exists "report: self write" on public.reports;
 create policy "report: self read"  on public.reports
@@ -193,12 +193,12 @@ create policy "report: self read"  on public.reports
 create policy "report: self write" on public.reports
   for insert with check (auth.uid() = user_id);
 
--- 본인 대화만 CRUD
+-- Own conversations: full CRUD
 drop policy if exists "conv: self all" on public.conversations;
 create policy "conv: self all" on public.conversations
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- 메시지는 부모 대화의 user 가 본인일 때만 read/write
+-- Messages: read/write only when the parent conversation belongs to the user
 drop policy if exists "msg: self read"  on public.messages;
 drop policy if exists "msg: self write" on public.messages;
 create policy "msg: self read" on public.messages

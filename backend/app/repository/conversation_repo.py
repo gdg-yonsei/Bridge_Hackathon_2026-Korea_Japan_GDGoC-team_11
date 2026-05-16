@@ -11,7 +11,7 @@ class ConversationRepository(BaseRepository[Conversation]):
     model = Conversation
 
     def get_by_diary_entry(self, diary_entry_id: int) -> Conversation | None:
-        """일기 entry 에 매핑된 대화 (messages 까지 eager load)."""
+        """Conversation mapped to a diary entry, with messages eager-loaded."""
         stmt = (
             select(Conversation)
             .where(Conversation.diary_entry_id == diary_entry_id)

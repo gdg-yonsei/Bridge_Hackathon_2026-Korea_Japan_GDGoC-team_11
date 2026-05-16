@@ -6,7 +6,7 @@ from app.entity.message_entity import MessageRole
 
 
 class ChatMessageIn(BaseModel):
-    """POST /chat/{diary_entry_id} 요청 body."""
+    """Request body for POST /chat/{diary_entry_id}."""
 
     message: str = Field(min_length=1, max_length=4000)
 
@@ -20,7 +20,7 @@ class MessageOut(BaseModel):
 
 
 class ChatTurnResponse(BaseModel):
-    """POST /chat/{diary_entry_id} 응답 — 이번 턴에 추가된 두 메시지."""
+    """Response for POST /chat/{diary_entry_id} — the two messages added this turn."""
 
     conversation_id: int
     user_message: MessageOut
@@ -28,7 +28,7 @@ class ChatTurnResponse(BaseModel):
 
 
 class ConversationDetail(BaseModel):
-    """GET /chat/{diary_entry_id} 응답 — 전체 히스토리."""
+    """Response for GET /chat/{diary_entry_id} — full conversation history."""
 
     id: int
     diary_entry_id: int

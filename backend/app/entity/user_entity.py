@@ -1,8 +1,8 @@
-"""Supabase auth.users 와 1:1 로 매핑되는 public.profiles 테이블.
+"""public.profiles table — 1:1 with Supabase auth.users.
 
-Supabase 의 표준 패턴이며, auth 데이터(비번, 세션 등)는 auth.users 가 갖고,
-앱 도메인 필드(닉네임 등)는 여기에 둔다. id 는 auth.users.id 와 동일한 UUID.
-프로필 행은 첫 로그인 시 백엔드에서 upsert 한다.
+Standard Supabase pattern: auth data (password, sessions) lives in auth.users;
+app-domain fields (nickname, etc.) live here. The `id` is the same UUID as auth.users.id.
+The profiles row is upserted by the backend on first login.
 """
 
 from __future__ import annotations

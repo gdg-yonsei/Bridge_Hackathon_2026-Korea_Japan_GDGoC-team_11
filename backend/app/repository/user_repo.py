@@ -7,9 +7,9 @@ from app.repository.base_repo import BaseRepository
 
 
 class UserRepository(BaseRepository[User]):
-    """Supabase profiles 테이블 접근.
+    """Access layer for the Supabase profiles table.
 
-    `get(user_id)` 는 BaseRepository.get 으로 동작 (UUID 가 PK 라서 그대로 OK).
+    `get(user_id)` works via BaseRepository.get since UUID is the PK.
     """
 
     model = User
@@ -20,10 +20,10 @@ class UserRepository(BaseRepository[User]):
         email: str | None,
         nickname: str | None = None,
     ) -> User:
-        """Supabase 첫 로그인 시 profile 생성 또는 email 갱신.
+        """Create or refresh a profile row on first Supabase login.
 
-        Postgres ON CONFLICT 로 idempotent 하게 upsert. nickname 은
-        이미 존재할 경우 사용자가 설정한 값을 보존 (덮어쓰지 않음).
+        Idempotent via Postgres ON CONFLICT. An existing nickname is preserved
+        (not overwritten) because the user may have customised it.
         """
         stmt = (
             pg_insert(User)
