@@ -20,12 +20,8 @@ class Settings(BaseSettings):
     database_url: str = ""
 
     # --- LLM ---
-    # vLLM (CBT-Copilot). OpenAI-compatible endpoint.
-    vllm_base_url: str = "http://vllm:8000/v1"
-    vllm_api_key: str = "EMPTY"
-    vllm_model: str = "thillaic/CBT-Copilot"
-
-    # Gemini (emotion analysis + period reports)
+    # Gemini drives chatbot, emotion classification, period reports, and
+    # therapist matching. Get a key at https://aistudio.google.com/apikey
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
 

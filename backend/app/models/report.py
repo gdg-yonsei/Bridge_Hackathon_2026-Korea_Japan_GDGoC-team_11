@@ -15,8 +15,8 @@ class ReportCreate(BaseModel):
 class EmotionStat(BaseModel):
     """Per-emotion aggregate over the report period."""
 
-    avg: float = Field(..., description="Mean intensity (1-10) across all analysed entries")
-    peak: int = Field(..., description="Highest intensity observed (1-10)")
+    avg: float = Field(..., description="Mean score (0.0-1.0) across all analysed entries")
+    peak: float = Field(..., description="Highest score observed (0.0-1.0)")
     days: int = Field(..., description="Number of entries where this was the primary emotion")
 
 
@@ -27,9 +27,9 @@ class ReportOut(BaseModel):
     period_end: date
     dominant_emotion: Emotion
     summary: str
-    mood_chart: dict[str, dict[str, int]] = Field(
+    mood_chart: dict[str, dict[str, float]] = Field(
         ...,
-        description='Per-day intensities, e.g. {"2026-05-11": {"joy": 7, "sad": 3, ...}}',
+        description='Per-day scores, e.g. {"2026-05-11": {"joy": 0.7, "sad": 0.1, ...}}',
     )
     stats: dict[str, EmotionStat] = Field(
         ...,

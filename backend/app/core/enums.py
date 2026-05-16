@@ -14,6 +14,13 @@ class Emotion(StrEnum):
     anger = "anger"
     anxiety = "anxiety"
     calm = "calm"
+    embarrassment = "embarrassment"
+    envy = "envy"
+    boredom = "boredom"
+    nostalgia = "nostalgia"
+
+
+EMOTIONS: tuple[str, ...] = tuple(e.value for e in Emotion)
 
 
 class MessageRole(StrEnum):

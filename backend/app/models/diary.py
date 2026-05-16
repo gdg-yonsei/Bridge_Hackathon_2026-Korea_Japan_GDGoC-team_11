@@ -5,29 +5,36 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.core.enums import DiaryStatus, Emotion
 
 
+class EmotionScores(BaseModel):
+    """All 9 emotions, floats in [0, 1]. The LLM may use the full range
+    independently per emotion — they are not normalised to sum to 1."""
+
+    joy: float = Field(0.0, ge=0.0, le=1.0)
+    sad: float = Field(0.0, ge=0.0, le=1.0)
+    anger: float = Field(0.0, ge=0.0, le=1.0)
+    anxiety: float = Field(0.0, ge=0.0, le=1.0)
+    calm: float = Field(0.0, ge=0.0, le=1.0)
+    embarrassment: float = Field(0.0, ge=0.0, le=1.0)
+    envy: float = Field(0.0, ge=0.0, le=1.0)
+    boredom: float = Field(0.0, ge=0.0, le=1.0)
+    nostalgia: float = Field(0.0, ge=0.0, le=1.0)
+
+
 class DiaryAnalysisLLMResult(BaseModel):
-    """Gemini structured output schema for diary emotion analysis.
+    """Gemini structured-output schema for diary emotion analysis."""
 
-    Intensities are integers in [1, 10] — 1 is barely present, 10 is intense.
-    """
-
-    joy: int = Field(..., ge=1, le=10)
-    sad: int = Field(..., ge=1, le=10)
-    anger: int = Field(..., ge=1, le=10)
-    anxiety: int = Field(..., ge=1, le=10)
-    calm: int = Field(..., ge=1, le=10)
+    primary_emotion: Emotion
+    scores: EmotionScores
     summary: str = Field(
-        ...,
-        description="One sentence summarising the emotional tone of the entry.",
+        ..., description="One sentence summarising the emotional tone of the entry."
     )
 
     crisis_score: float = Field(
-        default=0.0,
-        description="Crisis risk score between 0.0 and 1.0",
+        default=0.0, ge=0.0, le=1.0, description="Crisis risk score between 0.0 and 1.0"
     )
-    nuri_message: str = Field(
+    solis_message: str = Field(
         default="",
-        description="Warm personal reflection from Nuri, max 3 sentences",
+        description="Warm personal reflection from Solis, max 3 sentences",
     )
     suggested_action: str = Field(
         default="",
@@ -37,6 +44,7 @@ class DiaryAnalysisLLMResult(BaseModel):
         default=False,
         description="True if user needs crisis hotline",
     )
+
 
 class DiaryCreate(BaseModel):
     entry_date: date
@@ -79,8 +87,8 @@ class DiaryListItem(BaseModel):
 class DiaryDetail(BaseModel):
     """GET /diary/{id} — flat shape matching the diary_entries row.
 
-    The five `*_intensity` fields are integers in [1, 10] when analysis
-    is complete; null while pending or on failure.
+    `scores` carries all 9 emotion floats once analysis is complete; null
+    while pending or on failure.
     """
 
     id: int
@@ -89,12 +97,12 @@ class DiaryDetail(BaseModel):
     content: str
     status: DiaryStatus
     primary_emotion: Emotion | None = None
-    joy_intensity: int | None = None
-    sad_intensity: int | None = None
-    anger_intensity: int | None = None
-    anxiety_intensity: int | None = None
-    calm_intensity: int | None = None
+    scores: dict[str, float] | None = None
     emotion_summary: str | None = None
+    crisis_score: float | None = None
+    solis_message: str | None = None
+    suggested_action: str | None = None
+    needs_hotline: bool = False
     songs: list[SongOut] | None = None
     created_at: datetime
     updated_at: datetime

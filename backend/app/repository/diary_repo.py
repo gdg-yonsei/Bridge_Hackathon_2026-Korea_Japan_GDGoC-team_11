@@ -58,28 +58,30 @@ class DiaryRepository(BaseRepository[DiaryEntry]):
         entry: DiaryEntry,
         *,
         primary_emotion: Emotion,
-        intensities: dict[str, int],
+        scores: dict[str, float],
         summary: str,
         model_name: str | None,
         raw_response: dict[str, Any] | None,
+        crisis_score: float | None = None,
+        solis_message: str | None = None,
+        suggested_action: str | None = None,
+        needs_hotline: bool = False,
         songs: list[dict[str, Any]] | None = None,
     ) -> None:
         """Write the analysis result onto the diary row.
 
-        `intensities` must contain integer values keyed by emotion name
-        (joy / sad / anger / anxiety / calm). Songs is forwarded as-is when
-        provided; pass None to leave the column unchanged, or an empty list
-        to clear it.
+        `scores` carries all 9 emotion floats in [0, 1]. Songs is forwarded
+        as-is when provided; pass None to leave the column unchanged.
         """
         entry.primary_emotion = primary_emotion
-        entry.joy_intensity = intensities.get("joy")
-        entry.sad_intensity = intensities.get("sad")
-        entry.anger_intensity = intensities.get("anger")
-        entry.anxiety_intensity = intensities.get("anxiety")
-        entry.calm_intensity = intensities.get("calm")
+        entry.scores = scores
         entry.emotion_summary = summary
         entry.emotion_model = model_name
         entry.emotion_raw = raw_response
+        entry.crisis_score = crisis_score
+        entry.solis_message = solis_message
+        entry.suggested_action = suggested_action
+        entry.needs_hotline = needs_hotline
         if songs is not None:
             entry.songs = songs
         self.session.flush()
@@ -87,13 +89,13 @@ class DiaryRepository(BaseRepository[DiaryEntry]):
     def clear_analysis(self, entry: DiaryEntry) -> None:
         """Reset analysis-derived columns when the entry content is being re-analysed."""
         entry.primary_emotion = None
-        entry.joy_intensity = None
-        entry.sad_intensity = None
-        entry.anger_intensity = None
-        entry.anxiety_intensity = None
-        entry.calm_intensity = None
+        entry.scores = None
         entry.emotion_summary = None
         entry.emotion_model = None
         entry.emotion_raw = None
+        entry.crisis_score = None
+        entry.solis_message = None
+        entry.suggested_action = None
+        entry.needs_hotline = False
         entry.songs = None
         self.session.flush()
