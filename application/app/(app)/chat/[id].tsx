@@ -41,7 +41,7 @@ function TypingDots() {
   }, [dot0, dot1, dot2]);
 
   return (
-    <View style={[styles.bubbleRow, { paddingHorizontal: 16, marginBottom: 8 }]}>
+    <View style={[styles.bubbleRow, { marginBottom: 8 }]}>
       <View style={[styles.botAvatar, { backgroundColor: theme.colors.primaryContainer }]}>
         <Text style={{ fontSize: 14 }}>✨</Text>
       </View>
