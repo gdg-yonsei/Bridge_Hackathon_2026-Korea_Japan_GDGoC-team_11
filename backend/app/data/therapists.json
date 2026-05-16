@@ -1,0 +1,422 @@
+[
+    {
+        "therapist_id": "KR001",
+        "name": "Dr. Kim Soo-Yeon",
+        "location": "Seoul, Korea",
+        "languages": ["Korean", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (임상심리사 1급)",
+            "Certified CBT Therapist",
+            "National Mental Health Counselor"
+        ],
+        "approach": ["CBT", "Mindfulness-Based Cognitive Therapy"],
+        "specializes_in": ["anxiety", "embarrassment", "workplace stress", "self-esteem", "perfectionism"],
+        "emotions_treated": ["anxiety", "embarrassment", "anger", "sad"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 10,
+        "education": "Ph.D. Clinical Psychology, Seoul National University",
+        "bio": "Specializes in helping professionals overcome workplace anxiety and shame using evidence-based CBT techniques. Experienced working with Korean corporate culture.",
+        "price_per_session": "100,000 KRW",
+        "rating": 4.9
+    },
+    {
+        "therapist_id": "KR002",
+        "name": "Park Ji-Ho",
+        "location": "Seoul, Korea",
+        "languages": ["Korean"],
+        "certifications": [
+            "Licensed Counseling Psychologist (상담심리사 1급)",
+            "Certified Mindfulness Instructor",
+            "Trauma-Focused CBT Certified"
+        ],
+        "approach": ["Mindfulness", "ACT", "Trauma-Focused CBT"],
+        "specializes_in": ["sad", "nostalgia", "grief", "depression", "loss"],
+        "emotions_treated": ["sad", "nostalgia", "calm", "anxiety"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 7,
+        "education": "M.A. Counseling Psychology, Yonsei University",
+        "bio": "Gentle and patient counselor specializing in grief, loss, and nostalgic longing. Creates a safe space for processing deep emotions.",
+        "price_per_session": "80,000 KRW",
+        "rating": 4.8
+    },
+    {
+        "therapist_id": "KR003",
+        "name": "Dr. Choi Min-Jun",
+        "location": "Busan, Korea",
+        "languages": ["Korean", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (임상심리사 1급)",
+            "Anger Management Specialist",
+            "Certified CBT Therapist"
+        ],
+        "approach": ["CBT", "Dialectical Behavior Therapy (DBT)", "Emotion Regulation"],
+        "specializes_in": ["anger", "envy", "frustration", "impulse control", "workplace conflict"],
+        "emotions_treated": ["anger", "envy", "anxiety", "embarrassment"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 12,
+        "education": "Ph.D. Clinical Psychology, Pusan National University",
+        "bio": "Expert in anger management and emotion regulation. Helps clients understand the root of envy and frustration and channel them constructively.",
+        "price_per_session": "90,000 KRW",
+        "rating": 4.7
+    },
+    {
+        "therapist_id": "KR004",
+        "name": "Lee Hana",
+        "location": "Seoul, Korea",
+        "languages": ["Korean", "Japanese"],
+        "certifications": [
+            "Licensed Counseling Psychologist (상담심리사 1급)",
+            "Positive Psychology Practitioner",
+            "Certified Joy and Wellbeing Coach"
+        ],
+        "approach": ["Positive Psychology", "Solution-Focused Therapy", "Strengths-Based"],
+        "specializes_in": ["joy", "boredom", "motivation", "life purpose", "burnout recovery"],
+        "emotions_treated": ["boredom", "joy", "calm", "sad"],
+        "online_available": true,
+        "in_person_available": false,
+        "years_experience": 5,
+        "education": "M.A. Counseling Psychology, Korea University",
+        "bio": "Focuses on rebuilding joy and motivation in people experiencing boredom, emptiness, or burnout. Speaks Korean and Japanese fluently.",
+        "price_per_session": "70,000 KRW",
+        "rating": 4.8
+    },
+    {
+        "therapist_id": "KR005",
+        "name": "Dr. Jung Seo-Yun",
+        "location": "Seoul, Korea",
+        "languages": ["Korean", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (임상심리사 1급)",
+            "Schema Therapy Certified",
+            "Shame Resilience Certified Practitioner"
+        ],
+        "approach": ["Schema Therapy", "CBT", "Shame Resilience"],
+        "specializes_in": ["embarrassment", "envy", "self-worth", "social anxiety", "people pleasing"],
+        "emotions_treated": ["embarrassment", "envy", "anxiety", "sad"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 9,
+        "education": "Ph.D. Psychology, KAIST",
+        "bio": "Specializes in shame resilience and social anxiety. Helps clients rebuild self-worth after public embarrassment or social comparison.",
+        "price_per_session": "110,000 KRW",
+        "rating": 4.9
+    },
+    {
+        "therapist_id": "KR006",
+        "name": "Yoon Tae-Yang",
+        "location": "Incheon, Korea",
+        "languages": ["Korean"],
+        "certifications": [
+            "Licensed Counseling Psychologist (상담심리사 2급)",
+            "Mindfulness-Based Stress Reduction (MBSR) Certified",
+            "Sleep and Anxiety Specialist"
+        ],
+        "approach": ["MBSR", "Mindfulness", "Relaxation Therapy"],
+        "specializes_in": ["anxiety", "calm", "sleep issues", "stress", "work-life balance"],
+        "emotions_treated": ["anxiety", "calm", "boredom", "sad"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 6,
+        "education": "M.A. Psychology, Inha University",
+        "bio": "Helps clients find calm amidst anxiety through mindfulness and stress reduction techniques. Specializes in sleep disorders related to anxiety.",
+        "price_per_session": "65,000 KRW",
+        "rating": 4.6
+    },
+    {
+        "therapist_id": "KR007",
+        "name": "Dr. Han Soo-Jin",
+        "location": "Daegu, Korea",
+        "languages": ["Korean", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (임상심리사 1급)",
+            "Grief and Loss Specialist",
+            "Nostalgia and Life Transitions Counselor"
+        ],
+        "approach": ["Narrative Therapy", "Existential Therapy", "Grief Counseling"],
+        "specializes_in": ["nostalgia", "sad", "grief", "life transitions", "identity"],
+        "emotions_treated": ["nostalgia", "sad", "calm", "joy"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 14,
+        "education": "Ph.D. Counseling Psychology, Kyungpook National University",
+        "bio": "Expert in helping clients process nostalgia, grief, and major life transitions. Uses narrative therapy to help clients rewrite their story.",
+        "price_per_session": "85,000 KRW",
+        "rating": 4.9
+    },
+    {
+        "therapist_id": "KR008",
+        "name": "Shin Bo-Ra",
+        "location": "Seoul, Korea",
+        "languages": ["Korean"],
+        "certifications": [
+            "Licensed Counseling Psychologist (상담심리사 1급)",
+            "Art Therapy Certified",
+            "Depression and Mood Disorder Specialist"
+        ],
+        "approach": ["Art Therapy", "CBT", "Interpersonal Therapy"],
+        "specializes_in": ["sad", "boredom", "depression", "creativity", "self-expression"],
+        "emotions_treated": ["sad", "boredom", "calm", "joy"],
+        "online_available": false,
+        "in_person_available": true,
+        "years_experience": 8,
+        "education": "M.A. Art Therapy, Ewha Womans University",
+        "bio": "Uses creative expression through art therapy to help clients process sadness and boredom. Particularly effective for those who struggle to verbalize emotions.",
+        "price_per_session": "75,000 KRW",
+        "rating": 4.7
+    },
+    {
+        "therapist_id": "KR009",
+        "name": "Dr. Oh Jae-Won",
+        "location": "Seoul, Korea",
+        "languages": ["Korean", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (임상심리사 1급)",
+            "Organizational Psychology Specialist",
+            "Workplace Mental Health Certified"
+        ],
+        "approach": ["CBT", "Solution-Focused Therapy", "Coaching Psychology"],
+        "specializes_in": ["anger", "envy", "workplace stress", "leadership", "career burnout"],
+        "emotions_treated": ["anger", "envy", "anxiety", "embarrassment"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 11,
+        "education": "Ph.D. Organizational Psychology, Sungkyunkwan University",
+        "bio": "Expert in workplace mental health, helping professionals manage anger, envy, and career-related stress in competitive Korean work environments.",
+        "price_per_session": "120,000 KRW",
+        "rating": 4.8
+    },
+    {
+        "therapist_id": "KR010",
+        "name": "Im Ye-Jin",
+        "location": "Gwangju, Korea",
+        "languages": ["Korean"],
+        "certifications": [
+            "Licensed Counseling Psychologist (상담심리사 1급)",
+            "Youth and Young Adult Specialist",
+            "Anxiety and Phobia Treatment Certified"
+        ],
+        "approach": ["CBT", "Exposure Therapy", "Acceptance and Commitment Therapy (ACT)"],
+        "specializes_in": ["anxiety", "embarrassment", "social anxiety", "academic stress", "self-confidence"],
+        "emotions_treated": ["anxiety", "embarrassment", "sad", "anger"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 5,
+        "education": "M.A. Clinical Psychology, Chonnam National University",
+        "bio": "Specializes in helping young adults overcome social anxiety and embarrassment. Creates a judgment-free space for exploring difficult emotions.",
+        "price_per_session": "60,000 KRW",
+        "rating": 4.7
+    },
+    {
+        "therapist_id": "JP001",
+        "name": "Dr. Tanaka Yuki",
+        "location": "Tokyo, Japan",
+        "languages": ["Japanese", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (公認心理師)",
+            "Certified CBT Therapist (日本認知療法・認知行動療法学会)",
+            "Mindfulness-Based Cognitive Therapy Certified"
+        ],
+        "approach": ["CBT", "MBCT", "Psychodynamic"],
+        "specializes_in": ["anxiety", "embarrassment", "workplace stress", "perfectionism", "self-worth"],
+        "emotions_treated": ["anxiety", "embarrassment", "sad", "anger"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 12,
+        "education": "Ph.D. Clinical Psychology, University of Tokyo",
+        "bio": "Experienced in treating anxiety and shame in Japanese professionals. Sensitive to cultural pressures around performance and public image.",
+        "price_per_session": "15,000 JPY",
+        "rating": 4.9
+    },
+    {
+        "therapist_id": "JP002",
+        "name": "Sato Haruki",
+        "location": "Osaka, Japan",
+        "languages": ["Japanese"],
+        "certifications": [
+            "Licensed Clinical Psychologist (公認心理師)",
+            "Mindfulness Instructor Certified",
+            "Burnout and Fatigue Specialist"
+        ],
+        "approach": ["Mindfulness", "ACT", "Rest and Recovery Therapy"],
+        "specializes_in": ["boredom", "calm", "burnout", "fatigue", "motivation"],
+        "emotions_treated": ["boredom", "calm", "sad", "anxiety"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 8,
+        "education": "M.A. Psychology, Osaka University",
+        "bio": "Helps clients reconnect with meaning and motivation after burnout and emotional numbness. Specializes in boredom as a symptom of deeper disconnection.",
+        "price_per_session": "12,000 JPY",
+        "rating": 4.7
+    },
+    {
+        "therapist_id": "JP003",
+        "name": "Dr. Yamamoto Aiko",
+        "location": "Tokyo, Japan",
+        "languages": ["Japanese", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (公認心理師)",
+            "Grief and Bereavement Counselor",
+            "Existential Therapy Certified"
+        ],
+        "approach": ["Existential Therapy", "Narrative Therapy", "Grief Counseling"],
+        "specializes_in": ["nostalgia", "sad", "grief", "meaning", "loss"],
+        "emotions_treated": ["nostalgia", "sad", "calm", "joy"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 15,
+        "education": "Ph.D. Clinical Psychology, Kyoto University",
+        "bio": "Expert in grief, nostalgia, and existential questions about meaning. Helps clients honor the past while building a meaningful present.",
+        "price_per_session": "18,000 JPY",
+        "rating": 4.9
+    },
+    {
+        "therapist_id": "JP004",
+        "name": "Watanabe Kenji",
+        "location": "Nagoya, Japan",
+        "languages": ["Japanese"],
+        "certifications": [
+            "Licensed Clinical Psychologist (公認心理師)",
+            "Anger Management Specialist",
+            "DBT Certified Therapist"
+        ],
+        "approach": ["DBT", "Emotion Regulation", "Anger Management"],
+        "specializes_in": ["anger", "envy", "frustration", "conflict resolution", "emotional regulation"],
+        "emotions_treated": ["anger", "envy", "anxiety", "embarrassment"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 10,
+        "education": "M.A. Clinical Psychology, Nagoya University",
+        "bio": "Specializes in anger and envy management using DBT techniques. Helps clients understand emotional triggers and develop healthier responses.",
+        "price_per_session": "13,000 JPY",
+        "rating": 4.6
+    },
+    {
+        "therapist_id": "JP005",
+        "name": "Dr. Nakamura Hana",
+        "location": "Tokyo, Japan",
+        "languages": ["Japanese", "Korean", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (公認心理師)",
+            "Schema Therapy Certified",
+            "Cross-Cultural Psychology Specialist"
+        ],
+        "approach": ["Schema Therapy", "CBT", "Cross-Cultural Counseling"],
+        "specializes_in": ["embarrassment", "envy", "self-worth", "cultural identity", "social pressure"],
+        "emotions_treated": ["embarrassment", "envy", "anxiety", "sad"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 9,
+        "education": "Ph.D. Cross-Cultural Psychology, Waseda University",
+        "bio": "Uniquely positioned to help Korean and Japanese clients navigate cultural shame and social pressure. Speaks Korean, Japanese, and English.",
+        "price_per_session": "16,000 JPY",
+        "rating": 4.9
+    },
+    {
+        "therapist_id": "JP006",
+        "name": "Kobayashi Rin",
+        "location": "Kyoto, Japan",
+        "languages": ["Japanese"],
+        "certifications": [
+            "Licensed Clinical Psychologist (公認心理師)",
+            "Positive Psychology Practitioner",
+            "Joy and Flourishing Certified Coach"
+        ],
+        "approach": ["Positive Psychology", "Strengths-Based Therapy", "Behavioral Activation"],
+        "specializes_in": ["joy", "boredom", "depression", "life satisfaction", "creativity"],
+        "emotions_treated": ["boredom", "joy", "calm", "sad"],
+        "online_available": true,
+        "in_person_available": false,
+        "years_experience": 6,
+        "education": "M.A. Psychology, Kyoto University",
+        "bio": "Helps clients rediscover joy and meaning through positive psychology and behavioral activation. Specializes in depression presenting as boredom or emptiness.",
+        "price_per_session": "11,000 JPY",
+        "rating": 4.8
+    },
+    {
+        "therapist_id": "JP007",
+        "name": "Dr. Ito Masashi",
+        "location": "Fukuoka, Japan",
+        "languages": ["Japanese", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (公認心理師)",
+            "Workplace Mental Health Specialist",
+            "Organizational Stress Counselor"
+        ],
+        "approach": ["CBT", "Solution-Focused Therapy", "Stress Inoculation Training"],
+        "specializes_in": ["anxiety", "anger", "workplace stress", "karoshi prevention", "work-life balance"],
+        "emotions_treated": ["anxiety", "anger", "embarrassment", "boredom"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 13,
+        "education": "Ph.D. Occupational Psychology, Kyushu University",
+        "bio": "Expert in Japanese workplace stress and karoshi (overwork) prevention. Helps professionals set boundaries and manage work-related anger and anxiety.",
+        "price_per_session": "14,000 JPY",
+        "rating": 4.8
+    },
+    {
+        "therapist_id": "JP008",
+        "name": "Fujimoto Sakura",
+        "location": "Sapporo, Japan",
+        "languages": ["Japanese"],
+        "certifications": [
+            "Licensed Clinical Psychologist (公認心理師)",
+            "EMDR Certified Therapist",
+            "Anxiety and Trauma Specialist"
+        ],
+        "approach": ["EMDR", "Trauma-Focused CBT", "Somatic Therapy"],
+        "specializes_in": ["anxiety", "sad", "trauma", "PTSD", "fear"],
+        "emotions_treated": ["anxiety", "sad", "anger", "calm"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 11,
+        "education": "M.A. Clinical Psychology, Hokkaido University",
+        "bio": "Specializes in trauma and anxiety using EMDR and somatic approaches. Creates a deeply safe environment for processing difficult experiences.",
+        "price_per_session": "13,500 JPY",
+        "rating": 4.7
+    },
+    {
+        "therapist_id": "JP009",
+        "name": "Dr. Hayashi Tomoko",
+        "location": "Tokyo, Japan",
+        "languages": ["Japanese", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (公認心理師)",
+            "Interpersonal Therapy Certified",
+            "Depression and Mood Specialist"
+        ],
+        "approach": ["Interpersonal Therapy", "CBT", "Behavioral Activation"],
+        "specializes_in": ["sad", "nostalgia", "depression", "relationships", "loneliness"],
+        "emotions_treated": ["sad", "nostalgia", "calm", "anxiety"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 9,
+        "education": "Ph.D. Clinical Psychology, Tohoku University",
+        "bio": "Warm and empathetic therapist specializing in depression, loneliness, and nostalgic grief. Uses interpersonal therapy to rebuild meaningful connections.",
+        "price_per_session": "15,500 JPY",
+        "rating": 4.8
+    },
+    {
+        "therapist_id": "JP010",
+        "name": "Shimizu Daiki",
+        "location": "Yokohama, Japan",
+        "languages": ["Japanese", "English"],
+        "certifications": [
+            "Licensed Clinical Psychologist (公認心理師)",
+            "Acceptance and Commitment Therapy (ACT) Certified",
+            "Mindfulness-Based Stress Reduction Certified"
+        ],
+        "approach": ["ACT", "Mindfulness", "Values-Based Therapy"],
+        "specializes_in": ["calm", "anxiety", "boredom", "values clarification", "life direction"],
+        "emotions_treated": ["calm", "anxiety", "boredom", "sad"],
+        "online_available": true,
+        "in_person_available": true,
+        "years_experience": 7,
+        "education": "M.A. Psychology, Keio University",
+        "bio": "Helps clients find calm and clarity through ACT and mindfulness. Specializes in helping people reconnect with their values when feeling lost or directionless.",
+        "price_per_session": "12,500 JPY",
+        "rating": 4.7
+    }
+]
