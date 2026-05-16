@@ -115,3 +115,4 @@ def _safe_mark_failed(db, entry_id: int) -> None:
             db.commit()
     except Exception:
         logger.exception("could not mark entry %s as failed", entry_id)
+
