@@ -158,35 +158,35 @@ export default function ChatHubScreen() {
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
           ListHeaderComponent={
             <View style={{ marginBottom: 16 }}>
-              {/* diary status */}
-              {diaryEntry ? (
-                <View style={[styles.diaryBadge, { backgroundColor: theme.colors.primaryContainer }]}>
-                  <MaterialCommunityIcons name="book-open-outline" size={16} color={theme.colors.primary} />
-                  <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600' }}>
-                    Diary entry found
-                  </Text>
-                </View>
-              ) : (
-                <View style={[styles.diaryBadge, { backgroundColor: theme.colors.surfaceVariant }]}>
-                  <MaterialCommunityIcons name="book-off-outline" size={16} color={theme.colors.outline} />
-                  <Text style={{ color: theme.colors.outline, fontSize: 13 }}>No diary for this day</Text>
-                </View>
-              )}
-
               {/* 새 채팅 button */}
               <Pressable
                 style={({ pressed }) => [
                   styles.newChatBtn,
-                  { backgroundColor: theme.colors.primary, opacity: pressed || creating ? 0.7 : 1 },
+                  {
+                    backgroundColor: diaryEntry ? theme.colors.primary : theme.colors.surfaceVariant,
+                    opacity: pressed || creating ? 0.7 : 1,
+                  },
                 ]}
                 onPress={handleNewChat}
-                disabled={creating}
+                disabled={!diaryEntry || creating}
               >
                 {creating
                   ? <ActivityIndicator size={18} color="#fff" />
-                  : <MaterialCommunityIcons name="plus" size={20} color="#fff" />}
-                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>새 채팅</Text>
+                  : <MaterialCommunityIcons name="plus" size={20} color={diaryEntry ? '#fff' : theme.colors.outline} />}
+                <Text style={{ color: diaryEntry ? '#fff' : theme.colors.outline, fontWeight: '700', fontSize: 15 }}>
+                  New Chat
+                </Text>
               </Pressable>
+
+              {/* no diary notice */}
+              {!diaryEntry && (
+                <View style={[styles.noDiaryNotice, { backgroundColor: theme.colors.errorContainer }]}>
+                  <MaterialCommunityIcons name="information-outline" size={16} color={theme.colors.error} />
+                  <Text style={{ color: theme.colors.error, fontSize: 13, flex: 1 }}>
+                    Write a diary entry for this day to start a chat.
+                  </Text>
+                </View>
+              )}
 
               {conversations.length > 0 && (
                 <Text style={{ color: theme.colors.outline, fontSize: 12, marginTop: 8 }}>
@@ -259,15 +259,6 @@ const styles = StyleSheet.create({
   list: {
     padding: 16,
   },
-  diaryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    marginBottom: 12,
-  },
   newChatBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -275,6 +266,15 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     borderRadius: 14,
+  },
+  noDiaryNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
   convItem: {
     flexDirection: 'row',
