@@ -1,0 +1,19 @@
+:root {
+  /* Joy (기쁨) — Sunflower Yellow */
+  --emotion-joy: #FFD02C;
+
+  /* Calm (평온) — Sage Green */
+  --emotion-calm: #5BB381;
+
+  /* Comfort (안락) — Warm Apricot */
+  --emotion-comfort: #FFA852;
+
+  /* Sadness (슬픔) — Sky Blue */
+  --emotion-sadness: #49A3DC;
+
+  /* Anxiety (불안) — Deep Purple */
+  --emotion-anxiety: #79509E;
+
+  /* Anger (분노) — Crimson Red */
+  --emotion-anger: #D63229;
+}

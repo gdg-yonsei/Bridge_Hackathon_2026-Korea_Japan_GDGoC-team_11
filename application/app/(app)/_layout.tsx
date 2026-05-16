@@ -15,14 +15,9 @@ export default function AppLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarStyle: { display: 'none' },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.outline,
-        tabBarStyle: {
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.surfaceVariant,
-          borderTopWidth: 1,
-        },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
       <Tabs.Screen
@@ -53,7 +48,6 @@ export default function AppLayout() {
           tabBarIcon: ({ color, size }) => <TabIcon name="robot-happy-outline" color={color} size={size} />,
         }}
       />
-      {/* hide from tab bar */}
       <Tabs.Screen name="debug" options={{ href: null }} />
     </Tabs>
   );
