@@ -129,15 +129,6 @@ export default function WriteScreen() {
           >
             {id ? 'Update' : 'Save'}
           </Button>
-          {id && (
-            <IconButton
-              icon="chat-processing-outline"
-              size={24}
-              onPress={handleChat}
-              disabled={loading || loadingConversations || creatingConversation}
-              iconColor={theme.colors.primary}
-            />
-          )}
         </View>
       </View>
 
