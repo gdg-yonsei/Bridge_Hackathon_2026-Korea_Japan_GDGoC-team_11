@@ -163,6 +163,7 @@ export default function HomeScreen() {
   const [selectedKey, setSelectedKey] = useState<string>(toKey(TODAY.year, TODAY.month, TODAY.day));
   const [detail, setDetail] = useState<DiaryDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const detailAbortRef = useRef<AbortController | null>(null);
 
   const loadMonth = useCallback((y: number, m: number, currentSelectedKey: string) => {
     setLoadingEntries(true);
@@ -176,6 +177,9 @@ export default function HomeScreen() {
       .catch(() => setEntries({}))
       .finally(() => setLoadingEntries(false));
   }, []);
+
+  // Cancel any in-flight detail request on unmount
+  useEffect(() => () => { detailAbortRef.current?.abort(); }, []);
 
   // Reload when month changes
   useEffect(() => {
@@ -219,12 +223,16 @@ export default function HomeScreen() {
   }, [entries, year, month, selectedKey]);
 
   const fetchDetail = (entryId: number) => {
+    detailAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    detailAbortRef.current = ctrl;
+
     setLoadingDetail(true);
     setDetail(null);
-    diaryService.getDetail(entryId)
-      .then(setDetail)
-      .catch(() => setDetail(null))
-      .finally(() => setLoadingDetail(false));
+    diaryService.getDetail(entryId, ctrl.signal)
+      .then(d => { if (!ctrl.signal.aborted) setDetail(d); })
+      .catch(e => { if (e?.name !== 'AbortError') setDetail(null); })
+      .finally(() => { if (!ctrl.signal.aborted) setLoadingDetail(false); });
   };
 
   const handleDayPress = (key: string) => {

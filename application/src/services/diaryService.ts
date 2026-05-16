@@ -64,7 +64,7 @@ export const diaryService = {
   },
 
   /** Fetch full detail of a single entry. */
-  async getDetail(entryId: number): Promise<DiaryDetail> {
+  async getDetail(entryId: number, signal?: AbortSignal): Promise<DiaryDetail> {
     type Raw = {
       id: number; entry_date: string; title: string | null; content: string;
       status: DiaryStatus;
@@ -75,7 +75,7 @@ export const diaryService = {
       crisis_score?: number | null;
       needs_hotline?: boolean;
     };
-    const raw = await api.get<Raw>(`/diary/${entryId}`);
+    const raw = await api.get<Raw>(`/diary/${entryId}`, signal);
     return {
       id:               raw.id,
       entry_date:       raw.entry_date,
