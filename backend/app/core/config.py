@@ -25,5 +25,15 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
 
+    # --- CORS ---
+    # Comma-separated list of allowed origins. "*" allows all (dev convenience).
+    # Production: set to your frontend domain(s), e.g.
+    #   CORS_ORIGINS=https://app.example.com,https://www.example.com
+    cors_origins: str = "*"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
 
 settings = Settings()

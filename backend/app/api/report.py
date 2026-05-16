@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, get_db
+from app.core.rate_limit import limiter
 from app.entity.user_entity import User
 from app.models.report import ReportCreate, ReportOut
 from app.services.report_service import generate_report
@@ -10,7 +11,9 @@ router = APIRouter()
 
 
 @router.post("", response_model=ReportOut)
+@limiter.limit("20/hour")
 def create_report(
+    request: Request,
     payload: ReportCreate,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

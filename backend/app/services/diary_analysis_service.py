@@ -99,14 +99,13 @@ def _safe_mark_failed(db, entry_id: int) -> None:
         logger.exception("could not mark entry %s as failed", entry_id)
 
 
+# Tuned for high-recall on first-person crisis intent while avoiding the worst
+# false positives (e.g. "last day of school", "I can't go on vacation").
 CRISIS_KEYWORDS = (
     # suicidal ideation
     "want to die",
     "wanna die",
-    "i want to die",
     "end my life",
-    "end it all",
-    "ending it all",
     "kill myself",
     "killing myself",
     "take my own life",
@@ -123,15 +122,13 @@ CRISIS_KEYWORDS = (
     "cutting myself",
     "harm myself",
     "harming myself",
-    # hopelessness
-    "no point anymore",
+    # hopelessness — 1st-person prefixed to avoid benign matches
     "no point in living",
-    "can't go on",
-    "cannot go on",
-    "cant go on",
+    "i can't go on",
+    "i cannot go on",
+    "i cant go on",
     "give up on life",
     "giving up on life",
-    "disappear forever",
     "want to disappear",
     "nobody would miss me",
     "no one would miss me",
@@ -139,7 +136,7 @@ CRISIS_KEYWORDS = (
     # crisis signals
     "goodbye forever",
     "final goodbye",
-    "last day",
+    "my last day on earth",
     "won't be here tomorrow",
 )
 
