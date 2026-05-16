@@ -1,9 +1,19 @@
 export interface Report {
-  id: string;
-  diaryId: string;
+  period_start: string;
+  period_end: string;
+  dominant_emotion: string;
   summary: string;
-  emotions: string[];
-  insights: string[];
-  suggestions: string[];
-  createdAt: string;
+  mood_chart: Record<string, Record<string, number>>;
+  stats: Record<string, {
+    avg: number;
+    peak: number;
+    days: number;
+  }>;
+  model_name: string;
+  generated_at: string;
+}
+
+export interface CreateReportRequest {
+  period_start: string;
+  period_end: string;
 }
