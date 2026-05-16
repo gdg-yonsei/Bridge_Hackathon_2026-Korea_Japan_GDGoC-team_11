@@ -189,7 +189,15 @@ export default function ReportScreen() {
                 {Object.entries(report.stats).map(([emotion, stat]) => (
                   <View key={emotion} style={styles.statRow}>
                     <View style={styles.statInfo}>
-                      <Text style={{ fontSize: 24 }}>{EMOTION_EMOJIS[emotion as Emotion] || '•'}</Text>
+                      {EMOTION_IMAGES[emotion] ? (
+                        <Image 
+                          source={EMOTION_IMAGES[emotion]} 
+                          style={{ width: 32, height: 32 }} 
+                          resizeMode="contain" 
+                        />
+                      ) : (
+                        <Text style={{ fontSize: 24 }}>•</Text>
+                      )}
                       <View>
                         <Text variant="bodyLarge" style={{ fontWeight: '700' }}>{EMOTION_LABELS[emotion as Emotion] || emotion}</Text>
                         <Text variant="bodySmall" style={{ color: theme.colors.outline }}>{stat.days} days recorded</Text>
