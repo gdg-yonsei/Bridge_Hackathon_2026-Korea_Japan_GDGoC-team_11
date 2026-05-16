@@ -48,6 +48,13 @@ export default function AppLayout() {
           tabBarIcon: ({ color, size }) => <TabIcon name="chat-outline" color={color} size={size} />,
         }}
       />
+      <Tabs.Screen
+        name="therapists"
+        options={{
+          title: 'Therapists',
+          tabBarIcon: ({ color, size }) => <TabIcon name="account-heart-outline" color={color} size={size} />,
+        }}
+      />
       <Tabs.Screen name="debug" options={{ href: null }} />
     </Tabs>
   );

@@ -162,7 +162,9 @@ export default function ChatRoomScreen() {
   useEffect(() => {
     if (!conversationId) return;
     chatService.getDetail(conversationId)
-      .then(detail => setMessages(detail.messages))
+      .then(detail => {
+        setMessages(detail.messages);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [conversationId]);

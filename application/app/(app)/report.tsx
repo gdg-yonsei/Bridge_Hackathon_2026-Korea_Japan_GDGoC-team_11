@@ -93,6 +93,8 @@ export default function ReportScreen() {
           <Menu.Item onPress={() => { setMenuVisible(false); router.push('/chat'); }} title="Chat" leadingIcon="chat-outline" />
           <Divider />
           <Menu.Item onPress={() => setMenuVisible(false)} title="Report" leadingIcon="chart-bar" />
+          <Divider />
+          <Menu.Item onPress={() => { setMenuVisible(false); router.push('/therapists'); }} title="Therapists" leadingIcon="account-heart-outline" />
         </Menu>
 
         <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
