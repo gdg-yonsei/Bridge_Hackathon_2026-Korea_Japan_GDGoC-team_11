@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Image, ActivityIndicator, Dimensions } from 'react-native';
 import { Text, useTheme, Menu, Divider, Button, Surface, Card } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useDispatch, useSelector } from 'react-redux';
 import { Screen } from '@/components/Screen';
 import { useCreateReportMutation } from '@/store/api/reportApi';
+import { setCachedReport, clearCachedReport } from '@/store/slices/reportSlice';
+import { RootState } from '@/store';
 import { EMOTION_COLORS, EMOTION_LABELS, EMOTION_EMOJIS, type Emotion } from '@/data/mock';
 
 const EMOTION_IMAGES: Record<string, any> = {
@@ -16,10 +19,28 @@ const EMOTION_IMAGES: Record<string, any> = {
   angry:   require('../../assets/emotions/anger.png'),
 };
 
+const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export default function ReportScreen() {
   const theme = useTheme();
+  const dispatch = useDispatch();
   const [menuVisible, setMenuVisible] = useState(false);
   
+  const { cachedReport, savedAt } = useSelector((state: RootState) => state.report);
+  const [report, setReport] = useState(cachedReport);
+
+  useEffect(() => {
+    if (savedAt) {
+      const isExpired = Date.now() - new Date(savedAt).getTime() > TTL_MS;
+      if (isExpired) {
+        dispatch(clearCachedReport());
+        setReport(null);
+      } else {
+        setReport(cachedReport);
+      }
+    }
+  }, [cachedReport, savedAt, dispatch]);
+
   // For now, using simple state. 
   const [periodStart, setPeriodStart] = useState('2026-05-10');
   const [periodEnd, setPeriodEnd] = useState('2026-05-17');
@@ -34,14 +55,17 @@ export default function ReportScreen() {
     setPeriodEnd(fmt(end));
   };
 
-  const [createReport, { data: report, isLoading, error }] = useCreateReportMutation();
+  const [createReport, { isLoading, error }] = useCreateReportMutation();
 
   const handleGenerate = async () => {
     try {
-      await createReport({
+      const result = await createReport({
         period_start: periodStart,
         period_end: periodEnd,
       }).unwrap();
+      
+      dispatch(setCachedReport(result));
+      setReport(result);
     } catch (err) {
       console.error('Failed to generate report:', err);
     }
