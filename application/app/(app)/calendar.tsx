@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Text, Surface, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/Screen';
 import { AppHeader, AppHeaderBg } from '@/components/AppHeader';
@@ -164,19 +164,59 @@ export default function HomeScreen() {
   const [detail, setDetail] = useState<DiaryDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  useEffect(() => {
+  const loadMonth = useCallback((y: number, m: number, currentSelectedKey: string) => {
     setLoadingEntries(true);
-    setDetail(null);
-    diaryService.getMonth(year, month + 1)
+    diaryService.getMonth(y, m + 1)
       .then(data => {
         setEntries(data);
-        // auto-load detail for the currently selected key if it exists in new data
-        const entry = data[selectedKey];
+        const entry = data[currentSelectedKey];
         if (entry) fetchDetail(entry.entry_id);
+        else setDetail(null);
       })
       .catch(() => setEntries({}))
       .finally(() => setLoadingEntries(false));
+  }, []);
+
+  // Reload when month changes
+  useEffect(() => {
+    setDetail(null);
+    loadMonth(year, month, selectedKey);
   }, [year, month]);
+
+  // Reload on focus so write/edit changes are reflected immediately
+  useFocusEffect(useCallback(() => {
+    loadMonth(year, month, selectedKey);
+  }, [year, month]));
+
+  // Poll while any entry in the current month is pending/analyzing
+  useEffect(() => {
+    const hasPending = Object.values(entries).some(
+      e => e.status === 'pending' || e.status === 'analyzing'
+    );
+    if (!hasPending) return;
+
+    const id = setInterval(async () => {
+      try {
+        const data = await diaryService.getMonth(year, month + 1);
+        setEntries(data);
+
+        // Refresh detail panel if the selected entry just finished
+        const selected = data[selectedKey];
+        if (selected && selected.status !== 'pending' && selected.status !== 'analyzing') {
+          fetchDetail(selected.entry_id);
+        }
+
+        const stillPending = Object.values(data).some(
+          e => e.status === 'pending' || e.status === 'analyzing'
+        );
+        if (!stillPending) clearInterval(id);
+      } catch {
+        // network blip — keep polling
+      }
+    }, 3000);
+
+    return () => clearInterval(id);
+  }, [entries, year, month, selectedKey]);
 
   const fetchDetail = (entryId: number) => {
     setLoadingDetail(true);

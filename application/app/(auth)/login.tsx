@@ -26,7 +26,7 @@ export default function LoginScreen() {
       });
 
       if (error) throw error;
-      if (!data.url) throw new Error('OAuth URL을 받지 못했습니다.');
+      if (!data.url) throw new Error('Failed to get OAuth URL.');
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
       console.log('[OAuth] result type:', result.type);
@@ -43,7 +43,7 @@ export default function LoginScreen() {
         }
       }
     } catch (e) {
-      console.error('Google 로그인 실패:', e);
+      console.error('Google sign-in failed:', e);
     } finally {
       setLoading(false);
     }
@@ -53,10 +53,10 @@ export default function LoginScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.content}>
         <Text variant="headlineMedium" style={styles.title}>
-          Bridge
+          Solis
         </Text>
         <Text variant="bodyLarge" style={[styles.subtitle, { color: theme.colors.outline }]}>
-          일기를 쓰고 AI 분석을 받아보세요
+          Write your diary and get AI-powered emotion insights
         </Text>
       </View>
 
@@ -69,7 +69,7 @@ export default function LoginScreen() {
           onPress={signInWithGoogle}
           contentStyle={styles.buttonContent}
         >
-          Google로 계속하기
+          Continue with Google
         </Button>
       </View>
     </SafeAreaView>

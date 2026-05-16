@@ -120,6 +120,9 @@ export default function RootLayout() {
           <AuthProvider>
             <ScreenLockGuard />
             <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(app)" />
+              <Stack.Screen name="(auth)" />
               <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
             </Stack>
           </AuthProvider>

@@ -10,7 +10,9 @@ import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { AppHeader, AppHeaderBg } from '@/components/AppHeader';
 import { diaryService, type CalendarEntry, type DiaryDetail } from '@/services/diaryService';
-import { chatService } from '@/services/chatService';
+import { chatService, type Conversation } from '@/services/chatService';
+import { therapistService } from '@/services/therapistService';
+import type { Therapist } from '@/types/therapist';
 import { EMOTION_COLORS, EMOTION_LABELS, EMOTION_EMOJIS } from '@/data/mock';
 import type { Emotion } from '@/data/mock';
 
@@ -30,6 +32,10 @@ const TODAY = { year: _now.getFullYear(), month: _now.getMonth(), day: _now.getD
 
 function todayKey() {
   return `${TODAY.year}-${String(TODAY.month + 1).padStart(2, '0')}-${String(TODAY.day).padStart(2, '0')}`;
+}
+
+function fmtDateKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function greeting() {
@@ -138,11 +144,143 @@ function EmotionHero({
   );
 }
 
+// ── This Week strip ───────────────────────────────────────────────────────────
+function WeekStrip({ entries }: { entries: Record<string, CalendarEntry> }) {
+  const theme = useTheme();
+
+  // Build last 7 days ending today
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(_now);
+    d.setDate(_now.getDate() - (6 - i));
+    return d;
+  });
+
+  const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  return (
+    <View style={styles.weekRow}>
+      {days.map((d, idx) => {
+        const key = fmtDateKey(d);
+        const entry = entries[key];
+        const isToday = key === todayKey();
+        const emotionColor = entry?.emotion ? EMOTION_COLORS[entry.emotion as Emotion] : null;
+        const isPending = entry?.status === 'pending' || entry?.status === 'analyzing';
+
+        return (
+          <Pressable
+            key={key}
+            onPress={() => router.push('/calendar')}
+            style={({ pressed }) => [
+              styles.dayCell,
+              isToday && { backgroundColor: theme.colors.primaryContainer },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={[styles.dayLabel, { color: theme.colors.outline }]}>
+              {DAY_LABELS[d.getDay()]}
+            </Text>
+            <Text style={[styles.dayNum, { color: isToday ? theme.colors.primary : theme.colors.onSurface, fontWeight: isToday ? '800' : '400' }]}>
+              {d.getDate()}
+            </Text>
+            <View style={styles.dayDot}>
+              {isPending ? (
+                <ActivityIndicator size={8} color={theme.colors.primary} />
+              ) : emotionColor ? (
+                <View style={[styles.emotionDot, { backgroundColor: emotionColor }]} />
+              ) : (
+                <View style={[styles.emotionDot, { backgroundColor: 'transparent' }]} />
+              )}
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// ── Recent Chat card ──────────────────────────────────────────────────────────
+function RecentChatCard({ conv }: { conv: Conversation }) {
+  const theme = useTheme();
+  const ago = (() => {
+    const diff = Date.now() - new Date(conv.updated_at).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  })();
+
+  return (
+    <Pressable
+      onPress={() => router.push({ pathname: '/chat/[id]', params: { id: conv.id } })}
+      style={({ pressed }) => [styles.recentChatCard, { backgroundColor: theme.colors.surface, opacity: pressed ? 0.8 : 1 }]}
+    >
+      <View style={[styles.chatIconBox, { backgroundColor: '#0284C718' }]}>
+        <MaterialCommunityIcons name="chat-outline" size={22} color="#0284C7" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text variant="bodyMedium" style={{ fontWeight: '700', color: theme.colors.onSurface }} numberOfLines={1}>
+          {conv.title}
+        </Text>
+        <Text variant="bodySmall" style={{ color: theme.colors.outline, marginTop: 2 }}>
+          {ago}
+        </Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.outline} />
+    </Pressable>
+  );
+}
+
+// ── Therapist card ────────────────────────────────────────────────────────────
+function TherapistCard({ t }: { t: Therapist }) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={() => router.push({ pathname: '/therapists/[id]', params: { id: t.therapist_id } })}
+      style={({ pressed }) => [styles.therapistCard, { backgroundColor: theme.colors.surface, opacity: pressed ? 0.8 : 1 }]}
+    >
+      <View style={styles.therapistTop}>
+        <View style={[styles.therapistAvatar, { backgroundColor: '#DC262618' }]}>
+          <MaterialCommunityIcons name="account-heart-outline" size={22} color="#DC2626" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyMedium" style={{ fontWeight: '700', color: theme.colors.onSurface }} numberOfLines={1}>
+            {t.name}
+          </Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.outline }}>{t.location}</Text>
+        </View>
+        <View style={styles.ratingBadge}>
+          <MaterialCommunityIcons name="star" size={13} color="#F59E0B" />
+          <Text style={styles.ratingText}>{t.rating.toFixed(1)}</Text>
+        </View>
+      </View>
+      <View style={styles.therapistTags}>
+        {t.specializes_in.slice(0, 2).map(s => (
+          <View key={s} style={[styles.tag, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <Text style={[styles.tagText, { color: theme.colors.onSurfaceVariant }]}>{s}</Text>
+          </View>
+        ))}
+        {t.online_available && (
+          <View style={[styles.tag, { backgroundColor: '#D1FAE5' }]}>
+            <Text style={[styles.tagText, { color: '#065F46' }]}>Online</Text>
+          </View>
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const theme = useTheme();
   const [todayEntry, setTodayEntry] = useState<CalendarEntry | null | undefined>(undefined); // undefined = loading
   const [todayDetail, setTodayDetail] = useState<DiaryDetail | null>(null);
+  const [monthEntries, setMonthEntries] = useState<Record<string, CalendarEntry>>({});
+
+  // Sections below Quick Access
+  const [recentConv, setRecentConv] = useState<Conversation | null | undefined>(undefined);
+  const [matchedTherapists, setMatchedTherapists] = useState<Therapist[] | null>(null);
+  const [therapistsLoading, setTherapistsLoading] = useState(false);
 
   // accentColor drives both header and hero background
   const emotion = todayDetail?.emotion ?? todayEntry?.emotion ?? null;
@@ -152,6 +290,7 @@ export default function HomeScreen() {
   useFocusEffect(useCallback(() => {
     diaryService.getMonth(TODAY.year, TODAY.month + 1)
       .then(data => {
+        setMonthEntries(data);
         const entry = data[todayKey()] ?? null;
         setTodayEntry(entry);
         if (entry) {
@@ -163,6 +302,11 @@ export default function HomeScreen() {
         }
       })
       .catch(() => setTodayEntry(null));
+
+    // Fetch most recent conversation
+    chatService.list()
+      .then(convs => setRecentConv(convs.length > 0 ? convs[0] : null))
+      .catch(() => setRecentConv(null));
   }, []));
 
   // Poll while today's entry is pending/analyzing
@@ -186,6 +330,25 @@ export default function HomeScreen() {
 
     return () => clearInterval(id);
   }, [todayEntry?.entry_id, todayEntry?.status]);
+
+  // Fetch therapist recommendations once we have today's emotion
+  useEffect(() => {
+    if (!emotion) return;
+    setTherapistsLoading(true);
+    therapistService.match({
+      emotion,
+      context: todayDetail?.solis_message ?? todayDetail?.summary ?? undefined,
+    })
+      .then(list => {
+        console.log('[therapist/match] response:', JSON.stringify(list, null, 2));
+        setMatchedTherapists(list.slice(0, 2));
+      })
+      .catch((err) => {
+        console.error('[therapist/match] error:', err);
+        setMatchedTherapists(null);
+      })
+      .finally(() => setTherapistsLoading(false));
+  }, [emotion]);
 
   const handleChat = async () => {
     if (!todayEntry) return;
@@ -244,8 +407,68 @@ export default function HomeScreen() {
             <QuickCard icon="account-heart-outline" label="Therapists" color="#DC2626" onPress={() => router.push('/therapists')} />
           </View>
         </View>
+
+        {/* ── This Week ─────────────────────────────── */}
+        <View style={styles.section}>
+          <SectionHeader label="THIS WEEK" onMore={() => router.push('/calendar')} />
+          <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}>
+            <WeekStrip entries={monthEntries} />
+          </View>
+        </View>
+
+        {/* ── Recent Chat ───────────────────────────── */}
+        <View style={styles.section}>
+          <SectionHeader label="RECENT CHAT" onMore={() => router.push('/chat')} />
+          {recentConv === undefined ? (
+            <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginTop: 8 }} />
+          ) : recentConv ? (
+            <RecentChatCard conv={recentConv} />
+          ) : (
+            <Pressable
+              onPress={() => router.push('/chat')}
+              style={({ pressed }) => [styles.emptyCard, { backgroundColor: theme.colors.surface, opacity: pressed ? 0.8 : 1 }]}
+            >
+              <MaterialCommunityIcons name="chat-plus-outline" size={24} color={theme.colors.outline} />
+              <Text variant="bodyMedium" style={{ color: theme.colors.outline, marginLeft: 10 }}>Start a conversation with Solis</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* ── Recommended Therapists ────────────────── */}
+        {emotion && (
+          <View style={styles.section}>
+            <SectionHeader label="RECOMMENDED FOR YOU" onMore={() => router.push('/therapists')} />
+            {therapistsLoading ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginTop: 8 }} />
+            ) : matchedTherapists && matchedTherapists.length > 0 ? (
+              <View style={{ gap: 10 }}>
+                {matchedTherapists.map(t => <TherapistCard key={t.therapist_id} t={t} />)}
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => router.push('/therapists')}
+                style={({ pressed }) => [styles.emptyCard, { backgroundColor: theme.colors.surface, opacity: pressed ? 0.8 : 1 }]}
+              >
+                <MaterialCommunityIcons name="account-search-outline" size={24} color={theme.colors.outline} />
+                <Text variant="bodyMedium" style={{ color: theme.colors.outline, marginLeft: 10 }}>Browse therapist directory</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
       </ScrollView>
     </Screen>
+  );
+}
+
+function SectionHeader({ label, onMore }: { label: string; onMore: () => void }) {
+  const theme = useTheme();
+  return (
+    <View style={styles.sectionHeader}>
+      <Text variant="labelLarge" style={{ color: theme.colors.outline, letterSpacing: 1 }}>{label}</Text>
+      <Pressable onPress={onMore} hitSlop={8}>
+        <Text variant="labelMedium" style={{ color: theme.colors.primary, fontWeight: '700' }}>See all</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -387,5 +610,140 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  // ── Sections ──────────────────────────────────
+  section: {
+    paddingHorizontal: 20,
+    paddingTop: 28,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionCard: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  // ── Week strip ────────────────────────────────
+  weekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+  },
+  dayCell: {
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    minWidth: 36,
+  },
+  dayLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  dayNum: {
+    fontSize: 15,
+    marginBottom: 4,
+  },
+  dayDot: {
+    height: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emotionDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  // ── Recent Chat ───────────────────────────────
+  recentChatCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  chatIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  // ── Therapist card ────────────────────────────
+  therapistCard: {
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  therapistTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  therapistAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FEF9C3',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  ratingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  therapistTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  tag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  tagText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
