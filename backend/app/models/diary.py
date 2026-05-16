@@ -6,22 +6,19 @@ from app.core.enums import DiaryStatus, Emotion
 
 
 class EmotionScores(BaseModel):
-    """All 9 emotions, floats in [0, 1]. The LLM may use the full range
+    """All 6 emotions, floats in [0, 1]. The LLM uses the full range
     independently per emotion — they are not normalised to sum to 1."""
 
     joy: float = Field(0.0, ge=0.0, le=1.0)
-    sad: float = Field(0.0, ge=0.0, le=1.0)
-    anger: float = Field(0.0, ge=0.0, le=1.0)
-    anxiety: float = Field(0.0, ge=0.0, le=1.0)
     calm: float = Field(0.0, ge=0.0, le=1.0)
-    embarrassment: float = Field(0.0, ge=0.0, le=1.0)
-    envy: float = Field(0.0, ge=0.0, le=1.0)
-    boredom: float = Field(0.0, ge=0.0, le=1.0)
-    nostalgia: float = Field(0.0, ge=0.0, le=1.0)
+    comfort: float = Field(0.0, ge=0.0, le=1.0)
+    sad: float = Field(0.0, ge=0.0, le=1.0)
+    anxious: float = Field(0.0, ge=0.0, le=1.0)
+    angry: float = Field(0.0, ge=0.0, le=1.0)
 
 
 class DiaryAnalysisLLMResult(BaseModel):
-    """Gemini structured-output schema for diary emotion analysis."""
+    """Gemini structured-output schema for the persisted diary analysis."""
 
     primary_emotion: Emotion
     scores: EmotionScores
@@ -44,6 +41,21 @@ class DiaryAnalysisLLMResult(BaseModel):
         default=False,
         description="True if user needs crisis hotline",
     )
+
+
+class LivePreviewRequest(BaseModel):
+    """Body for POST /diary/preview — live classification while typing."""
+
+    content: str = Field(..., min_length=1, max_length=10_000)
+
+
+class LiveEmotionResult(BaseModel):
+    """Lightweight live response — primary emotion + 6 scores. No DB write,
+    no Solis fields. Used by the frontend to show emotion feedback while the
+    user is still typing the diary entry."""
+
+    primary_emotion: Emotion
+    scores: EmotionScores
 
 
 class DiaryCreate(BaseModel):
@@ -87,7 +99,7 @@ class DiaryListItem(BaseModel):
 class DiaryDetail(BaseModel):
     """GET /diary/{id} — flat shape matching the diary_entries row.
 
-    `scores` carries all 9 emotion floats once analysis is complete; null
+    `scores` carries all 6 emotion floats once analysis is complete; null
     while pending or on failure.
     """
 

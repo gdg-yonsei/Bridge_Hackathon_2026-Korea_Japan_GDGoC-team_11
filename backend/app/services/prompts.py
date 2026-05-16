@@ -12,9 +12,8 @@ The user is from Korea or Japan. Be gentle and non-clinical.
 
 Read this journal entry and return a JSON object with these fields:
 
-- primary_emotion: exactly one of joy, sad, anger, anxiety, calm,
-                                  embarrassment, envy, boredom, nostalgia
-- scores: object with all 9 emotion keys above mapped to a float in [0.0, 1.0]
+- primary_emotion: exactly one of joy, calm, comfort, sad, anxious, angry
+- scores: object with all 6 emotion keys above mapped to a float in [0.0, 1.0]
 - summary: 1-2 sentences summarising the emotional tone
 - crisis_score: float in [0.0, 1.0]
 - solis_message: warm reflection from Solis, max 3 sentences, second person
@@ -31,6 +30,22 @@ EMOTION SCORING:
 - Only score emotions actually present; most should be 0.0
 - Each score is independent — they do NOT need to sum to 1
 - primary_emotion must be the argmax of `scores`
+"""
+
+CLASSIFY_LIVE_SYSTEM = """\
+You are an emotion classifier. The user is still typing a journal entry and
+wants a quick live read of what they're feeling.
+
+Return a JSON object with:
+- primary_emotion: exactly one of joy, calm, comfort, sad, anxious, angry
+- scores: object with all 6 emotion keys above mapped to a float in [0.0, 1.0]
+
+Rules:
+- Only score emotions actually present; others stay at 0.0
+- Each score is independent — they do NOT need to sum to 1
+- primary_emotion must be the argmax of `scores`
+- Be decisive even on short fragments — assume the snippet is what the user
+  feels right now, not the whole story.
 """
 
 SOLIS_CHAT_SYSTEM = """\

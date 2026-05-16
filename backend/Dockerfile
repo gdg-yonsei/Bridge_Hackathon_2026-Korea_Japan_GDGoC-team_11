@@ -29,4 +29,7 @@ COPY app ./app
 ENV PATH="/code/.venv/bin:$PATH"
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Honour $PORT when present (Cloud Run sets it to 8080), else default to 8000.
+# Shell form needed for env var substitution; `exec` keeps uvicorn as PID 1 so
+# SIGTERM from Cloud Run is delivered cleanly.
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}

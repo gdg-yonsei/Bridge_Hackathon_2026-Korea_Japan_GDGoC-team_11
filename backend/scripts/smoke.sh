@@ -46,6 +46,17 @@ ok "got token (${TOKEN:0:20}…)"
 AUTH=(-H "Authorization: Bearer $TOKEN")
 
 # ─────────────────────────────────────────
+# Idempotency: scrub any leftover diary for today so step 4 doesn't 409.
+TODAY=$(date +%Y-%m-%d)
+YEAR=$(date +%Y); MONTH=$(date +%-m)
+EXISTING=$(curl -fsS "${AUTH[@]}" "$API_BASE/diary?year=$YEAR&month=$MONTH" \
+  | jq -r --arg d "$TODAY" '[.[] | select(.entry_date == $d)][0].entry_id // empty')
+if [ -n "$EXISTING" ]; then
+  curl -fsS -X DELETE "${AUTH[@]}" "$API_BASE/diary/$EXISTING" >/dev/null
+  ok "scrubbed leftover diary #$EXISTING for $TODAY"
+fi
+
+# ─────────────────────────────────────────
 bold "3) GET /auth/me"
 ME=$(curl -fsS "${AUTH[@]}" "$API_BASE/auth/me")
 USER_ID=$(echo "$ME" | jq -r '.id')
@@ -53,8 +64,17 @@ USER_ID=$(echo "$ME" | jq -r '.id')
 ok "user_id=$USER_ID"
 
 # ─────────────────────────────────────────
+bold "4a) POST /diary/preview  (live, no DB write)"
+PREV=$(curl -fsS -X POST "$API_BASE/diary/preview" "${AUTH[@]}" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"I felt anxious in the morning but calmer after a walk."}')
+PRIMARY=$(echo "$PREV" | jq -r '.primary_emotion')
+SCORES=$(echo "$PREV" | jq -c '.scores')
+[ -n "$PRIMARY" ] && [ "$PRIMARY" != "null" ] || fail "preview failed: $PREV"
+ok "live primary=$PRIMARY scores=$SCORES"
+
+# ─────────────────────────────────────────
 bold "4) POST /diary"
-TODAY=$(date +%Y-%m-%d)
 DIARY=$(curl -fsS -X POST "$API_BASE/diary" "${AUTH[@]}" \
   -H "Content-Type: application/json" \
   -d "{\"entry_date\":\"$TODAY\",\"title\":\"smoke\",\"content\":\"I felt anxious in the morning but calmer after a walk.\"}")

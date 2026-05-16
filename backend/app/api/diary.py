@@ -1,8 +1,9 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, get_db
 from app.core.enums import DiaryStatus
+from app.core.rate_limit import limiter
 from app.entity.diary_entry_entity import DiaryEntry
 from app.entity.user_entity import User
 from app.models.diary import (
@@ -11,11 +12,29 @@ from app.models.diary import (
     DiaryDetail,
     DiaryListItem,
     DiaryUpdate,
+    LiveEmotionResult,
+    LivePreviewRequest,
 )
 from app.repository.diary_repo import DiaryRepository
-from app.services.diary_analysis_service import trigger_analysis
+from app.services.diary_analysis_service import live_classify, trigger_analysis
 
 router = APIRouter()
+
+
+@router.post("/preview", response_model=LiveEmotionResult)
+@limiter.limit("200/hour")
+def preview_emotion(
+    request: Request,
+    payload: LivePreviewRequest,
+    _user: User = Depends(get_current_user),
+) -> LiveEmotionResult:
+    """Live emotion read while the user is still typing the diary.
+
+    Lightweight Gemini call — primary_emotion + 6 scores only, no Solis
+    reflection, no DB write. Frontend should debounce (suggested 800ms).
+    Rate-limited 200/hour per user token.
+    """
+    return live_classify(payload.content)
 
 
 @router.post("", response_model=DiaryAccepted, status_code=status.HTTP_202_ACCEPTED)
