@@ -21,6 +21,22 @@ class DiaryAnalysisLLMResult(BaseModel):
         description="One sentence summarising the emotional tone of the entry.",
     )
 
+    crisis_score: float = Field(
+        default=0.0,
+        description="Crisis risk score between 0.0 and 1.0",
+    )
+    nuri_message: str = Field(
+        default="",
+        description="Warm personal reflection from Nuri, max 3 sentences",
+    )
+    suggested_action: str = Field(
+        default="",
+        description="One small gentle suggestion for the user",
+    )
+    needs_hotline: bool = Field(
+        default=False,
+        description="True if user needs crisis hotline",
+    )
 
 class DiaryCreate(BaseModel):
     entry_date: date
