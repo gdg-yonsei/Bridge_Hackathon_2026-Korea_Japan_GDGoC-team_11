@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Text, useTheme } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
+import { HealingButton } from '@/components/common/HealingButton';
 import { supabase } from '@/lib/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -29,7 +29,6 @@ export default function LoginScreen() {
       if (!data.url) throw new Error('OAuth URL을 받지 못했습니다.');
 
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-      console.log('[OAuth] result type:', result.type);
 
       if (result.type === 'success') {
         const fragment = result.url.split('#')[1] ?? '';
@@ -52,25 +51,23 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.content}>
-        <Text variant="headlineMedium" style={styles.title}>
-          Bridge
+        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.primary }]}>
+          Healing Garden
         </Text>
         <Text variant="bodyLarge" style={[styles.subtitle, { color: theme.colors.outline }]}>
-          일기를 쓰고 AI 분석을 받아보세요
+          일기로 가꾸는 마음의 정원,{'\n'}기록을 전문가와 공유해보세요
         </Text>
       </View>
 
       <View style={styles.actions}>
-        <Button
-          mode="contained"
+        <HealingButton
           icon="google"
           loading={loading}
           disabled={loading}
           onPress={signInWithGoogle}
-          contentStyle={styles.buttonContent}
         >
-          Google로 계속하기
-        </Button>
+          Google로 시작하기
+        </HealingButton>
       </View>
     </SafeAreaView>
   );
@@ -86,19 +83,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   title: {
-    fontWeight: 'bold',
+    fontWeight: '700',
+    fontSize: 32,
   },
   subtitle: {
     textAlign: 'center',
+    lineHeight: 24,
   },
   actions: {
     gap: 12,
-    paddingBottom: 16,
-  },
-  buttonContent: {
-    paddingVertical: 6,
+    paddingBottom: 24,
   },
 });

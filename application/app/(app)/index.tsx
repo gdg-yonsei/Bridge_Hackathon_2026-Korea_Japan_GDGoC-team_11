@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
-import { Text, Surface, useTheme } from 'react-native-paper';
+import { Text, useTheme, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
-import { MOCK_ENTRIES, EMOTION_COLORS, EMOTION_LABELS, EMOTION_EMOJIS } from '@/data/mock';
-import type { Emotion } from '@/data/mock';
+import { HealingCard } from '@/components/common/HealingCard';
+import { EmotionChip } from '@/components/common/EmotionChip';
+import { tokens } from '@/theme/tokens';
+import { MOCK_ENTRIES, EMOTION_COLORS } from '@/data/mock';
 
-const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const CELL_SIZE = Math.floor((Dimensions.get('window').width - 32) / 7);
+const WEEK_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const { width } = Dimensions.get('window');
+const CELL_SIZE = Math.floor((width - 48) / 7);
 
 // Today hardcoded to match the demo date
 const TODAY = { year: 2026, month: 4, day: 16 };
@@ -36,7 +39,6 @@ export default function HomeScreen() {
   const weeks = buildWeeks(year, month);
   const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', {
     month: 'long',
-    year: 'numeric',
   });
 
   const todayKey = toKey(TODAY.year, TODAY.month, TODAY.day);
@@ -52,25 +54,17 @@ export default function HomeScreen() {
   };
 
   return (
-    // background bleeds behind the status bar (edge-to-edge)
-    // SafeAreaView (top + sides) keeps content below the notch
-    <Screen
-      background={<View style={[styles.headerBg, { backgroundColor: theme.colors.primary }]} />}
-      edges={['top', 'left', 'right']}
-    >
+    <Screen edges={['top', 'left', 'right']}>
       {/* ── Header ─────────────────────────────────────── */}
-      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <Pressable onPress={prevMonth} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-left" size={26} color="#fff" />
-        </Pressable>
-        <Text style={styles.monthTitle}>{monthLabel}</Text>
+      <View style={styles.header}>
+        <View>
+          <Text variant="titleLarge" style={styles.monthTitle}>{monthLabel}</Text>
+          <Text variant="labelSmall" style={{ color: theme.colors.outline }}>{year}</Text>
+        </View>
         <View style={styles.headerRight}>
-          <Pressable onPress={nextMonth} hitSlop={12}>
-            <MaterialCommunityIcons name="chevron-right" size={26} color="#fff" />
-          </Pressable>
-          <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
-            <MaterialCommunityIcons name="cog-outline" size={24} color="#fff" />
-          </Pressable>
+          <IconButton icon="chevron-left" size={24} onPress={prevMonth} />
+          <IconButton icon="chevron-right" size={24} onPress={nextMonth} />
+          <IconButton icon="cog-outline" size={24} onPress={() => router.push('/settings')} />
         </View>
       </View>
 
@@ -78,178 +72,183 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Weekday labels ──────────────────────────── */}
-        <View style={styles.weekRow}>
-          {WEEK_DAYS.map(d => (
-            <View key={d} style={[styles.cell, { width: CELL_SIZE }]}>
-              <Text style={[styles.weekDayText, { color: theme.colors.outline }]}>{d}</Text>
-            </View>
-          ))}
-        </View>
+        {/* ── Calendar Grid ───────────────────────────── */}
+        <HealingCard variant="flat" style={styles.calendarCard}>
+          <View style={styles.weekRow}>
+            {WEEK_DAYS.map((d, i) => (
+              <View key={i} style={[styles.cell, { width: CELL_SIZE }]}>
+                <Text variant="labelSmall" style={{ color: theme.colors.outline, fontWeight: '700' }}>{d}</Text>
+              </View>
+            ))}
+          </View>
 
-        {/* ── Calendar grid ───────────────────────────── */}
-        {weeks.map((week, wi) => (
-          <View key={wi} style={styles.weekRow}>
-            {week.map((day, di) => {
-              if (!day) return <View key={di} style={[styles.cell, { width: CELL_SIZE }]} />;
+          {weeks.map((week, wi) => (
+            <View key={wi} style={styles.weekRow}>
+              {week.map((day, di) => {
+                if (!day) return <View key={di} style={[styles.cell, { width: CELL_SIZE }]} />;
 
-              const key = toKey(year, month, day);
-              const entry = MOCK_ENTRIES[key];
-              const isToday =
-                year === TODAY.year && month === TODAY.month && day === TODAY.day;
+                const key = toKey(year, month, day);
+                const entry = MOCK_ENTRIES[key];
+                const isToday = year === TODAY.year && month === TODAY.month && day === TODAY.day;
 
-              return (
-                <View key={di} style={[styles.cell, { width: CELL_SIZE }]}>
-                  <View
-                    style={[
-                      styles.dayBox,
-                      { height: CELL_SIZE - 6 },
-                      isToday && { backgroundColor: theme.colors.primaryContainer },
-                    ]}
-                  >
-                    <Text
+                return (
+                  <View key={di} style={[styles.cell, { width: CELL_SIZE }]}>
+                    <Pressable
                       style={[
-                        styles.dayNumber,
-                        { color: isToday ? theme.colors.primary : theme.colors.onSurface },
-                        isToday && { fontWeight: '700' },
+                        styles.dayBox,
+                        { height: CELL_SIZE - 4 },
+                        isToday && { backgroundColor: theme.colors.primary, borderRadius: tokens.roundness.md },
                       ]}
                     >
-                      {day}
-                    </Text>
-                    {entry ? (
-                      <View
+                      <Text
+                        variant="bodyMedium"
                         style={[
-                          styles.emotionDot,
-                          { backgroundColor: EMOTION_COLORS[entry.emotion] },
+                          styles.dayNumber,
+                          { color: isToday ? '#fff' : theme.colors.onSurface },
+                          isToday && { fontWeight: '700' },
                         ]}
-                      />
-                    ) : (
-                      <View style={styles.emotionDotPlaceholder} />
-                    )}
+                      >
+                        {day}
+                      </Text>
+                      {entry && (
+                        <View
+                          style={[
+                            styles.emotionIndicator,
+                            { backgroundColor: isToday ? '#fff' : EMOTION_COLORS[entry.emotion] },
+                          ]}
+                        />
+                      )}
+                    </Pressable>
                   </View>
-                </View>
-              );
-            })}
-          </View>
-        ))}
+                );
+              })}
+            </View>
+          ))}
+        </HealingCard>
 
-        {/* ── Today's mood card ───────────────────────── */}
-        <Surface
-          style={[styles.todayCard, { borderRadius: theme.roundness * 3 }]}
-          elevation={1}
-        >
-          <Text variant="labelMedium" style={{ color: theme.colors.outline, marginBottom: 6 }}>
-            Today · May {TODAY.day}
-          </Text>
+        {/* ── Today's Insight Card ────────────────────── */}
+        <HealingCard variant="floating" style={styles.todayCard}>
+          <View style={styles.todayHeader}>
+            <View>
+              <Text variant="labelMedium" style={{ color: theme.colors.outline }}>
+                Today's Reflection
+              </Text>
+              <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
+                May {TODAY.day}, {TODAY.year}
+              </Text>
+            </View>
+            <IconButton 
+              icon="plus" 
+              mode="contained" 
+              containerColor={theme.colors.primaryContainer}
+              iconColor={theme.colors.primary}
+              onPress={() => router.push('/(app)/write')} 
+            />
+          </View>
+
+          <View style={styles.divider} />
 
           {todayEntry ? (
-            <>
-              <EmotionBadge emotion={todayEntry.emotion} />
+            <View style={styles.entryContent}>
+              <EmotionChip emotion={todayEntry.emotion} />
               <Text
-                variant="bodyMedium"
-                style={{ color: theme.colors.onSurface, marginTop: 10, lineHeight: 20 }}
+                variant="bodyLarge"
+                style={styles.snippetText}
               >
                 "{todayEntry.snippet}"
               </Text>
-            </>
+              <Pressable onPress={() => router.push('/(app)/diary')}>
+                <Text variant="labelLarge" style={{ color: theme.colors.primary, marginTop: tokens.spacing.sm }}>
+                  View full entry →
+                </Text>
+              </Pressable>
+            </View>
           ) : (
-            <Text variant="bodyMedium" style={{ color: theme.colors.outline }}>
-              How are you feeling today? Tap Write to add your entry.
-            </Text>
+            <View style={styles.emptyContent}>
+              <MaterialCommunityIcons name="leaf" size={32} color={theme.colors.outlineVariant} />
+              <Text variant="bodyMedium" style={{ color: theme.colors.outline, textAlign: 'center', marginTop: 12 }}>
+                How is your garden growing today?{'\n'}Take a moment to record your thoughts.
+              </Text>
+            </View>
           )}
-        </Surface>
+        </HealingCard>
       </ScrollView>
     </Screen>
   );
 }
 
-function EmotionBadge({ emotion }: { emotion: Emotion }) {
-  return (
-    <View style={[styles.emotionBadge, { backgroundColor: EMOTION_COLORS[emotion] }]}>
-      <Text style={styles.emotionEmoji}>{EMOTION_EMOJIS[emotion]}</Text>
-      <Text style={styles.emotionLabel}>{EMOTION_LABELS[emotion]}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  headerBg: {
-    // covers the status bar area + header height
-    height: 120,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   monthTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 24,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
   scroll: {
     padding: 16,
-    paddingBottom: 32,
-    gap: 2,
+    paddingBottom: 40,
+  },
+  calendarCard: {
+    padding: tokens.spacing.md,
+    backgroundColor: '#F7F8F5',
   },
   weekRow: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
   },
   cell: {
     alignItems: 'center',
-    paddingVertical: 3,
-  },
-  weekDayText: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    justifyContent: 'center',
+    marginVertical: 2,
   },
   dayBox: {
-    width: '88%',
-    borderRadius: 8,
+    width: '90%',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    paddingVertical: 4,
+    gap: 4,
   },
   dayNumber: {
-    fontSize: 13,
+    fontSize: 14,
   },
-  emotionDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  emotionDotPlaceholder: {
-    width: 6,
-    height: 6,
+  emotionIndicator: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
   todayCard: {
-    padding: 18,
-    marginTop: 20,
+    marginTop: 24,
+    padding: tokens.spacing.xl,
   },
-  emotionBadge: {
+  todayHeader: {
     flexDirection: 'row',
-    alignSelf: 'flex-start',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    justifyContent: 'space-between',
   },
-  emotionEmoji: {
-    fontSize: 16,
+  divider: {
+    height: 1,
+    backgroundColor: '#F0F2EE',
+    marginVertical: tokens.spacing.lg,
   },
-  emotionLabel: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
+  entryContent: {
+    gap: tokens.spacing.md,
+  },
+  snippetText: {
+    color: '#3A3C39',
+    lineHeight: 26,
+    fontStyle: 'italic',
+  },
+  emptyContent: {
+    alignItems: 'center',
+    paddingVertical: 20,
   },
 });

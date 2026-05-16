@@ -1,30 +1,32 @@
+import { emotionColors } from '@/theme';
+
 export type Emotion = 'joy' | 'sadness' | 'anger' | 'anxiety' | 'calm' | 'neutral';
 
 export const EMOTION_COLORS: Record<Emotion, string> = {
-  joy: '#FFD93D',
-  sadness: '#6B9BD2',
-  anger: '#FF6B6B',
-  anxiety: '#FF9F43',
-  calm: '#6BCB77',
-  neutral: '#ADB5BD',
+  joy: emotionColors.happy,
+  sadness: emotionColors.sad,
+  anger: emotionColors.angry,
+  anxiety: emotionColors.anxious,
+  calm: emotionColors.calm,
+  neutral: '#C2C4C1', // Slate Grey for neutral
 };
 
 export const EMOTION_LABELS: Record<Emotion, string> = {
-  joy: 'Joy',
-  sadness: 'Sadness',
-  anger: 'Anger',
-  anxiety: 'Anxiety',
-  calm: 'Calm',
-  neutral: 'Neutral',
+  joy: 'Joyful',
+  sadness: 'Quiet',
+  anger: 'Intense',
+  anxiety: 'Unsettled',
+  calm: 'Peaceful',
+  neutral: 'Balanced',
 };
 
 export const EMOTION_EMOJIS: Record<Emotion, string> = {
-  joy: '😊',
-  sadness: '😢',
-  anger: '😠',
-  anxiety: '😰',
-  calm: '😌',
-  neutral: '😐',
+  joy: '🌿',
+  sadness: '☁️',
+  anger: '🔥',
+  anxiety: '🌪️',
+  calm: '🍃',
+  neutral: '🐚',
 };
 
 export type DiaryEntry = {

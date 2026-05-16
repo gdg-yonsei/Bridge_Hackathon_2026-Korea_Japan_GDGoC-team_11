@@ -7,15 +7,17 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { Text, Button, Surface, useTheme } from 'react-native-paper';
+import { Text, useTheme, IconButton } from 'react-native-paper';
+import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
-import { EMOTION_COLORS, EMOTION_LABELS, EMOTION_EMOJIS } from '@/data/mock';
-import type { Emotion } from '@/data/mock';
+import { HealingCard } from '@/components/common/HealingCard';
+import { HealingButton } from '@/components/common/HealingButton';
+import { EmotionChip } from '@/components/common/EmotionChip';
+import { tokens } from '@/theme/tokens';
 
 // Simulated result from Gemini emotion classification
-const DEMO_EMOTION: Emotion = 'calm';
-
-const DATE_LABEL = 'Thursday, May 16, 2026';
+const DEMO_EMOTION = 'calm' as const;
+const DATE_LABEL = 'Thursday, May 16';
 
 export default function WriteScreen() {
   const theme = useTheme();
@@ -24,31 +26,23 @@ export default function WriteScreen() {
 
   const handleAnalyze = () => {
     setState('analyzing');
-    // simulate async Gemini call (202 + background task)
     setTimeout(() => setState('done'), 1500);
   };
 
   const handleSave = () => {
-    setText('');
-    setState('idle');
+    router.back();
   };
 
   return (
-    // SafeAreaView on top + sides; KeyboardAvoidingView handles the bottom
     <Screen edges={['top', 'left', 'right']}>
       {/* ── Header ───────────────────────────────────── */}
-      <View
-        style={[
-          styles.header,
-          { borderBottomColor: theme.colors.surfaceVariant, borderBottomWidth: 1 },
-        ]}
-      >
-        <Text variant="titleLarge" style={{ fontWeight: '700', color: theme.colors.onSurface }}>
-          New Entry
-        </Text>
-        <Text variant="labelMedium" style={{ color: theme.colors.outline }}>
-          {DATE_LABEL}
-        </Text>
+      <View style={styles.header}>
+        <IconButton icon="arrow-left" size={24} onPress={() => router.back()} />
+        <View style={styles.headerTitleContainer}>
+          <Text variant="titleMedium" style={styles.headerTitle}>New Reflection</Text>
+          <Text variant="labelSmall" style={{ color: theme.colors.outline }}>{DATE_LABEL}</Text>
+        </View>
+        <View style={{ width: 48 }} />
       </View>
 
       <KeyboardAvoidingView
@@ -59,89 +53,132 @@ export default function WriteScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ── Text input ────────────────────────────── */}
-          <Surface style={[styles.inputCard, { borderRadius: theme.roundness * 2 }]} elevation={0}>
+          <HealingCard variant="flat" style={styles.editorCard}>
             <TextInput
               style={[styles.textInput, { color: theme.colors.onSurface }]}
-              placeholder="How was your day? What's on your mind…"
-              placeholderTextColor={theme.colors.outline}
+              placeholder="How is your inner garden today? Describe your thoughts and feelings..."
+              placeholderTextColor={theme.colors.outlineVariant}
               multiline
+              autoFocus
               value={text}
               onChangeText={t => { setText(t); if (state === 'done') setState('idle'); }}
               textAlignVertical="top"
             />
-          </Surface>
+          </HealingCard>
 
-          {/* ── Emotion result card ───────────────────── */}
           {state === 'done' && (
-            <Surface
-              style={[styles.resultCard, { borderRadius: theme.roundness * 2 }]}
-              elevation={1}
-            >
-              <Text variant="labelMedium" style={{ color: theme.colors.outline, marginBottom: 10 }}>
-                Detected Emotion
-              </Text>
-              <View
-                style={[
-                  styles.emotionBadge,
-                  { backgroundColor: EMOTION_COLORS[DEMO_EMOTION] },
-                ]}
-              >
-                <Text style={styles.emoji}>{EMOTION_EMOJIS[DEMO_EMOTION]}</Text>
-                <Text style={styles.emotionLabel}>{EMOTION_LABELS[DEMO_EMOTION]}</Text>
+            <HealingCard variant="floating" style={styles.resultCard}>
+              <Text variant="labelLarge" style={styles.resultLabel}>Emotional Essence</Text>
+              <View style={styles.resultContent}>
+                <EmotionChip emotion={DEMO_EMOTION} />
+                <Text variant="bodyMedium" style={styles.resultText}>
+                  Gemini sensed a deep feeling of <Text style={{ fontWeight: '700' }}>Peaceful</Text> in your words.
+                </Text>
               </View>
-              <Text
-                variant="bodySmall"
-                style={{ color: theme.colors.outline, marginTop: 10, lineHeight: 18 }}
-              >
-                Gemini analysed your diary and detected this emotion. Save to add it to your calendar.
-              </Text>
-            </Surface>
+            </HealingCard>
           )}
 
-          {/* ── Hint when empty ───────────────────────── */}
-          {state === 'idle' && !text && (
-            <View style={styles.hint}>
-              <Text style={[styles.hintText, { color: theme.colors.outline }]}>
-                Write freely — there are no right answers. Your diary is private.
+          {state === 'idle' && (
+            <View style={styles.footerHint}>
+              <Text variant="bodySmall" style={styles.hintText}>
+                Your thoughts are safe and private. Only you can see this garden.
               </Text>
             </View>
           )}
         </ScrollView>
 
-        {/* ── Action bar ───────────────────────────────── */}
-        <View
-          style={[
-            styles.bottomBar,
-            {
-              borderTopColor: theme.colors.surfaceVariant,
-              borderTopWidth: 1,
-              backgroundColor: theme.colors.surface,
-            },
-          ]}
-        >
-          <Button
-            mode="outlined"
-            onPress={handleAnalyze}
-            loading={state === 'analyzing'}
-            disabled={!text.trim() || state !== 'idle'}
-            style={{ flex: 1 }}
-          >
-            Analyse
-          </Button>
-          <Button
-            mode="contained"
-            onPress={handleSave}
-            disabled={state !== 'done'}
-            style={{ flex: 1 }}
-          >
-            Save
-          </Button>
+        <View style={styles.actionArea}>
+          {state !== 'done' ? (
+            <HealingButton
+              variant="tonal"
+              onPress={handleAnalyze}
+              loading={state === 'analyzing'}
+              disabled={!text.trim() || state === 'analyzing'}
+              style={{ flex: 1 }}
+            >
+              Analyze Emotion
+            </HealingButton>
+          ) : (
+            <HealingButton
+              onPress={handleSave}
+              style={{ flex: 1 }}
+            >
+              Plant this Reflection
+            </HealingButton>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  headerTitleContainer: {
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontWeight: '700',
+  },
+  scroll: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  editorCard: {
+    minHeight: 320,
+    padding: tokens.spacing.md,
+    backgroundColor: '#F7F8F5',
+    borderWidth: 1,
+    borderColor: '#E8EAE6',
+  },
+  textInput: {
+    fontSize: 18,
+    lineHeight: 28,
+    padding: tokens.spacing.md,
+    minHeight: 280,
+  },
+  resultCard: {
+    marginTop: 24,
+    padding: tokens.spacing.xl,
+    backgroundColor: '#fff',
+  },
+  resultLabel: {
+    color: tokens.opacity.muted.toString(),
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  resultContent: {
+    gap: 16,
+  },
+  resultText: {
+    lineHeight: 22,
+    color: '#444842',
+  },
+  footerHint: {
+    marginTop: 40,
+    alignItems: 'center',
+  },
+  hintText: {
+    color: tokens.opacity.muted.toString(),
+    textAlign: 'center',
+    maxWidth: '80%',
+    lineHeight: 18,
+  },
+  actionArea: {
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    ...tokens.shadows.medium,
+  },
+});
 
 const styles = StyleSheet.create({
   header: {
@@ -175,13 +212,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: tokens.roundness.full,
   },
   emoji: {
     fontSize: 18,
   },
   emotionLabel: {
-    color: '#fff',
     fontWeight: '700',
     fontSize: 15,
   },
