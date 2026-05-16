@@ -10,11 +10,12 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Text, Button, Surface, useTheme } from 'react-native-paper';
+import { Text, Button, Surface, useTheme, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { diaryService } from '@/services/diaryService';
+import { useGetConversationsQuery, useCreateConversationMutation } from '@/store/api/chatApi';
 
 export default function WriteScreen() {
   const theme = useTheme();
@@ -23,6 +24,13 @@ export default function WriteScreen() {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // For chat navigation
+  const { data: conversations, isLoading: loadingConversations } = useGetConversationsQuery(
+    { diary_id: id ? Number(id) : undefined },
+    { skip: !id }
+  );
+  const [createConversation, { isLoading: creatingConversation }] = useCreateConversationMutation();
 
   useEffect(() => {
     if (id) {
@@ -38,6 +46,27 @@ export default function WriteScreen() {
         .finally(() => setLoading(false));
     }
   }, [id]);
+
+  const handleChat = async () => {
+    if (!id) return;
+
+    try {
+      let conversationId: number;
+      if (conversations && conversations.length > 0) {
+        conversationId = conversations[0].id;
+      } else {
+        const newConv = await createConversation({
+          diary_entry_id: Number(id),
+          title: `Chat about ${dateLabel}`,
+        }).unwrap();
+        conversationId = newConv.id;
+      }
+      router.push({ pathname: '/chat', params: { conversationId } });
+    } catch (err) {
+      console.error('Failed to start conversation:', err);
+      Alert.alert('Error', 'Failed to start a conversation.');
+    }
+  };
 
   const today = new Date();
   const dateLabel = today.toLocaleDateString('en-US', {
@@ -90,15 +119,26 @@ export default function WriteScreen() {
             {dateLabel}
           </Text>
         </View>
-        <Button
-          mode="text"
-          onPress={handleSave}
-          loading={saving}
-          disabled={saving || !text.trim() || loading}
-          compact
-        >
-          {id ? 'Update' : 'Save'}
-        </Button>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Button
+            mode="text"
+            onPress={handleSave}
+            loading={saving}
+            disabled={saving || !text.trim() || loading}
+            compact
+          >
+            {id ? 'Update' : 'Save'}
+          </Button>
+          {id && (
+            <IconButton
+              icon="chat-processing-outline"
+              size={24}
+              onPress={handleChat}
+              disabled={loading || loadingConversations || creatingConversation}
+              iconColor={theme.colors.primary}
+            />
+          )}
+        </View>
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>

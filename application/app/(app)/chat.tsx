@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,56 +6,76 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Text, IconButton, Surface, useTheme } from 'react-native-paper';
+import { useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/components/Screen';
-
-type Role = 'user' | 'bot';
-type Message = { id: string; role: Role; text: string };
-
-const SEED: Message[] = [
-  {
-    id: '0',
-    role: 'bot',
-    text: "Hi! I'm your CBT Copilot, powered by the CBT-Copilot model. I'm here to help you explore your thoughts and feelings. How are you doing today?",
-  },
-];
-
-const RESPONSES = [
-  "That sounds really meaningful. Can you tell me more about what you noticed in that moment?",
-  "I hear you. It's natural to feel that way. What thoughts were going through your mind?",
-  "Let's explore that a bit more. What evidence supports that thought — and what might challenge it?",
-  "That's a great observation. How did that make you feel physically?",
-  "It sounds like you're already showing a lot of self-awareness. What small step could you take today?",
-];
+import { useGetConversationQuery, usePostMessageMutation } from '@/store/api/chatApi';
+import type { Message } from '@/types/chat';
 
 export default function ChatScreen() {
   const theme = useTheme();
-  const [messages, setMessages] = useState<Message[]>(SEED);
+  const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
+  const id = Number(conversationId);
+
+  const { data: conversation, isLoading, isError, refetch } = useGetConversationQuery(id, {
+    skip: !id,
+  });
+  const [postMessage, { isLoading: isPosting }] = usePostMessageMutation();
+
   const [input, setInput] = useState('');
-  const [responding, setResponding] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
-  const send = () => {
+  const messages = conversation?.messages || [];
+
+  const send = async () => {
     const trimmed = input.trim();
-    if (!trimmed || responding) return;
+    if (!trimmed || isPosting) return;
 
-    const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', text: trimmed };
-    setMessages(prev => [...prev, userMsg]);
     setInput('');
-    setResponding(true);
-
-    // simulate vLLM streaming response delay
-    setTimeout(() => {
-      const reply = RESPONSES[Math.floor(Math.random() * RESPONSES.length)];
-      const botMsg: Message = { id: `b-${Date.now()}`, role: 'bot', text: reply };
-      setMessages(prev => [...prev, botMsg]);
-      setResponding(false);
-    }, 1000 + Math.random() * 600);
+    try {
+      await postMessage({
+        conversationId: id,
+        body: { message: trimmed },
+      }).unwrap();
+      // Scroll to end after sending is handled by useEffect on messages change
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      setInput(trimmed); // Restore input on failure
+    }
   };
 
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        listRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
+
+  if (isLoading) {
+    return (
+      <Screen edges={['top', 'left', 'right']}>
+        <View style={styles.centered}>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Screen edges={['top', 'left', 'right']}>
+        <View style={styles.centered}>
+          <Text>Failed to load conversation.</Text>
+          <IconButton icon="refresh" onPress={refetch} />
+        </View>
+      </Screen>
+    );
+  }
+
   return (
-    // SafeAreaView covers top + sides; KeyboardAvoidingView handles the input bar
     <Screen edges={['top', 'left', 'right']}>
       {/* ── Header ─────────────────────────────────── */}
       <View
@@ -68,11 +88,11 @@ export default function ChatScreen() {
           <Text style={{ fontSize: 22 }}>🤖</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text variant="titleMedium" style={{ fontWeight: '700', color: theme.colors.onSurface }}>
-            CBT Copilot
+          <Text variant="titleMedium" style={{ fontWeight: '700', color: theme.colors.onSurface }} numberOfLines={1}>
+            {conversation?.title || 'Chat'}
           </Text>
           <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
-            {responding ? 'Typing…' : 'Ready to listen'}
+            {isPosting ? 'AI is thinking…' : 'Gemini Copilot'}
           </Text>
         </View>
       </View>
@@ -80,23 +100,23 @@ export default function ChatScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {/* ── Message list ─────────────────────────── */}
         <FlatList
           ref={listRef}
           data={messages}
-          keyExtractor={m => m.id}
+          keyExtractor={(item, index) => `${item.created_at}-${index}`}
           contentContainerStyle={styles.messageList}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           renderItem={({ item }) => <Bubble item={item} />}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.outline, textAlign: 'center' }}>
+                Start a conversation about your diary entry.
+              </Text>
+            </View>
+          }
         />
-
-        {/* ── Typing indicator ─────────────────────── */}
-        {responding && (
-          <View style={styles.typingRow}>
-            <Text style={{ color: '#888', fontSize: 20, letterSpacing: 2 }}>···</Text>
-          </View>
-        )}
 
         {/* ── Input bar ────────────────────────────── */}
         <View
@@ -118,21 +138,22 @@ export default function ChatScreen() {
           >
             <TextInput
               style={[styles.textInput, { color: theme.colors.onSurface }]}
-              placeholder="Share what's on your mind…"
+              placeholder="Message..."
               placeholderTextColor={theme.colors.outline}
               value={input}
               onChangeText={setInput}
               onSubmitEditing={send}
               returnKeyType="send"
               multiline
+              editable={!isPosting}
             />
           </Surface>
           <IconButton
             icon="send"
             size={22}
-            iconColor={input.trim() && !responding ? theme.colors.primary : theme.colors.outline}
+            iconColor={input.trim() && !isPosting ? theme.colors.primary : theme.colors.outline}
             onPress={send}
-            disabled={!input.trim() || responding}
+            disabled={!input.trim() || isPosting}
           />
         </View>
       </KeyboardAvoidingView>
@@ -161,7 +182,7 @@ function Bubble({ item }: { item: Message }) {
             fontSize: 14,
           }}
         >
-          {item.text}
+          {item.content}
         </Text>
       </View>
     </View>
@@ -169,6 +190,11 @@ function Bubble({ item }: { item: Message }) {
 }
 
 const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -186,7 +212,7 @@ const styles = StyleSheet.create({
   messageList: {
     padding: 16,
     gap: 10,
-    paddingBottom: 8,
+    paddingBottom: 20,
   },
   bubbleRow: {
     flexDirection: 'row',
@@ -201,9 +227,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 18,
   },
-  typingRow: {
-    paddingHorizontal: 20,
-    paddingBottom: 4,
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
   },
   inputBar: {
     flexDirection: 'row',
