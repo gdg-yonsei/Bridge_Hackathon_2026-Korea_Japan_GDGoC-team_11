@@ -17,7 +17,7 @@ const SEED: Message[] = [
   {
     id: '0',
     role: 'bot',
-    text: "Hi! I'm your CBT Copilot, powered by the CBT-Copilot model. I'm here to help you explore your thoughts and feelings. How are you doing today?",
+    text: "Hi, welcome back. This is a quiet space just for you — no judgement, no rush. What's on your mind today?",
   },
 ];
 
@@ -65,14 +65,14 @@ export default function ChatScreen() {
         ]}
       >
         <View style={[styles.avatar, { backgroundColor: theme.colors.primaryContainer }]}>
-          <Text style={{ fontSize: 22 }}>🤖</Text>
+          <Text style={{ fontSize: 22 }}>🌿</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="titleMedium" style={{ fontWeight: '700', color: theme.colors.onSurface }}>
-            CBT Copilot
+            Wellness Guide
           </Text>
           <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
-            {responding ? 'Typing…' : 'Ready to listen'}
+            {responding ? 'Thinking…' : 'Here for you'}
           </Text>
         </View>
       </View>

@@ -1,5 +1,15 @@
 export type Emotion = 'joy' | 'sadness' | 'anger' | 'anxiety' | 'calm' | 'neutral';
 
+// Soft pastel backgrounds for each emotion (shared across Home and Write)
+export const EMOTION_BG: Record<Emotion, string> = {
+  joy: '#FFF8D6',
+  sadness: '#E4EEF9',
+  anger: '#FAE8E8',
+  anxiety: '#FEF2E0',
+  calm: '#E2F5E6',
+  neutral: '#EEECEB',
+};
+
 export const EMOTION_COLORS: Record<Emotion, string> = {
   joy: '#FFD93D',
   sadness: '#6B9BD2',

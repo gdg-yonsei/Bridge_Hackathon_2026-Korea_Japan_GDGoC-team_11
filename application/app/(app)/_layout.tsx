@@ -49,8 +49,8 @@ export default function AppLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'Chat',
-          tabBarIcon: ({ color, size }) => <TabIcon name="robot-happy-outline" color={color} size={size} />,
+          title: 'Guide',
+          tabBarIcon: ({ color, size }) => <TabIcon name="chat-outline" color={color} size={size} />,
         }}
       />
       {/* hide from tab bar */}
