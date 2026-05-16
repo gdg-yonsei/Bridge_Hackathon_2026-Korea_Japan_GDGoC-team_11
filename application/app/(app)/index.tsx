@@ -12,6 +12,7 @@ import { Screen } from '@/components/Screen';
 import { EMOTION_COLORS, EMOTION_LABELS, EMOTION_EMOJIS } from '@/data/mock';
 import type { Emotion } from '@/data/mock';
 import { diaryService, decodeContent, type CalendarEntry, type DiaryDetail } from '@/services/diaryService';
+import { chatService } from '@/services/chatService';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CELL_SIZE = Math.floor((Dimensions.get('window').width - 32) / 7);
@@ -337,7 +338,13 @@ export default function HomeScreen() {
       {hasTodayEntry && (
         <Pressable
           style={[styles.fabChat, { bottom: fabBottom, backgroundColor: theme.colors.secondary }]}
-          onPress={() => router.push('/chat')}
+          onPress={async () => {
+            const convs = await chatService.list(todayEntry.entry_id);
+            const target = convs.length > 0
+              ? convs[0]
+              : await chatService.create(todayEntry.entry_id);
+            router.push({ pathname: '/chat/[id]', params: { id: target.id } });
+          }}
         >
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>채팅하기</Text>
         </Pressable>
