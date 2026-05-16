@@ -1,0 +1,1 @@
+# Conversation ORM entity — TBD
