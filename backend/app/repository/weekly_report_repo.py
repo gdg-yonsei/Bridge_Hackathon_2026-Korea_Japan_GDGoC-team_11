@@ -1,4 +1,5 @@
 from datetime import date
+from uuid import UUID
 
 from sqlalchemy import select
 
@@ -10,7 +11,7 @@ class WeeklyReportRepository(BaseRepository[WeeklyReport]):
     model = WeeklyReport
 
     def get_by_user_and_week(
-        self, user_id: int, week_start: date
+        self, user_id: UUID, week_start: date
     ) -> WeeklyReport | None:
         stmt = select(WeeklyReport).where(
             WeeklyReport.user_id == user_id,

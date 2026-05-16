@@ -1,37 +1,57 @@
-from datetime import datetime, timedelta, timezone
+"""Supabase JWT 검증 유틸.
+
+Supabase가 발급한 access token 은 HS256 으로 서명되어 있고,
+서명 키는 Settings → API → JWT Secret 에서 가져온다.
+페이로드에는 `sub` (UUID, auth.users.id), `email`, `role`, `aud="authenticated"`, `exp` 등이 들어있다.
+"""
+
+from dataclasses import dataclass
+from uuid import UUID
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_HOURS = 24
-
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SUPABASE_AUDIENCE = "authenticated"
 
 
-def hash_password(password: str) -> str:
-    return _pwd.hash(password)
+@dataclass(frozen=True)
+class SupabaseClaims:
+    """검증된 Supabase JWT 의 핵심 필드."""
+
+    user_id: UUID
+    email: str | None
+    role: str | None
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd.verify(plain, hashed)
+def verify_supabase_token(token: str) -> SupabaseClaims | None:
+    """Supabase JWT 를 검증하고 핵심 클레임을 반환. 실패 시 None."""
+    if not settings.supabase_jwt_secret:
+        # 설정 누락 — 호출자가 401 로 응답하게 None 반환
+        return None
 
-
-def create_access_token(user_id: int) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS)
-    payload = {"sub": str(user_id), "exp": expire}
-    return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
-
-
-def decode_access_token(token: str) -> int | None:
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            settings.supabase_jwt_secret,
+            algorithms=[ALGORITHM],
+            audience=SUPABASE_AUDIENCE,
+        )
     except JWTError:
         return None
+
     sub = payload.get("sub")
+    if sub is None:
+        return None
+
     try:
-        return int(sub) if sub is not None else None
+        user_id = UUID(str(sub))
     except (TypeError, ValueError):
         return None
+
+    return SupabaseClaims(
+        user_id=user_id,
+        email=payload.get("email"),
+        role=payload.get("role"),
+    )

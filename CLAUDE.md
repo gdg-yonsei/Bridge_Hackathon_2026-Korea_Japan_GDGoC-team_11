@@ -16,9 +16,12 @@
 | 영역 | 기술 |
 |---|---|
 | Backend | FastAPI · SQLAlchemy 2.0 · Pydantic v2 · LangGraph |
-| LLM | vLLM (OpenAI 호환 API, base_url만 교체) |
-| DB | PostgreSQL 16 |
-| Frontend | Next.js 14 (App Router) · TypeScript · TailwindCSS |
+| LLM (챗봇) | **CBT-Copilot** (`thillaic/CBT-Copilot`, Llama-3.2-3B-Instruct LoRA) via vLLM |
+| LLM (주간 리포트) | **Gemini API** (`gemini-2.5-flash`) |
+| LLM (감정 분류) | TBD — 사용자 탐색 중 |
+| DB · Auth | **Supabase** (Postgres + Auth + Realtime) |
+| 언어 | **영어** (사용자 입력, 프롬프트 모두 영어) |
+| Frontend | Next.js 14 (App Router) · TypeScript · TailwindCSS · `@supabase/supabase-js` |
 | Infra | Docker Compose · uv (Python 의존성 관리) |
 
 ## 도메인 모델 요약
@@ -40,6 +43,21 @@ users ── diary_entries ── emotion_analyses (1:1)
 - `backend/app/services/chat_service/` — LangGraph 그래프 정의 (감정 분석 그래프)
 - `backend/app/api/` — HTTP 라우팅 (얇게 유지)
 - `backend/app/worker/` — 백그라운드 잡 (분석 트리거, 주간 리포트 생성)
+
+## Supabase 운영 규칙
+
+- **회원가입/로그인은 프론트엔드가 직접** `@supabase/supabase-js` 로 처리.
+  백엔드는 절대 비밀번호를 다루지 않음 (`/auth/signup`, `/auth/login` 엔드포인트 없음).
+- 프론트는 Supabase access_token 을 `Authorization: Bearer <token>` 으로 백엔드에 전달.
+- 백엔드는 [core/security.py](backend/app/core/security.py) 의 `verify_supabase_token`
+  으로 HS256 JWT 를 검증 (서명 키 = `SUPABASE_JWT_SECRET`).
+- 검증 후 [core/dependencies.py](backend/app/core/dependencies.py) `get_current_user`
+  가 `public.profiles` 행을 upsert — Supabase `auth.users.id` (UUID) 와 동일한 PK.
+- 모든 사용자 식별자(`user_id`)는 **UUID** (Integer 아님). entity / repository /
+  route 시그니처 모두 UUID 로 통일.
+- **Row-Level Security (RLS)** 를 모든 사용자 데이터 테이블에 적용. 백엔드 라우터의
+  `entry.user_id != user.id` 같은 수동 체크는 보조 안전장치일 뿐, 1차 격리는 DB가 함.
+- 서비스 롤 키 (`SUPABASE_SERVICE_ROLE_KEY`) 는 백엔드만 보유, 절대 프론트/깃에 노출 금지.
 
 ## 작업 규칙 (반드시 지킬 것)
 
@@ -82,19 +100,25 @@ users ── diary_entries ── emotion_analyses (1:1)
   LangGraph는 백그라운드 실행)
 - 동기로 묶지 말 것 — vLLM 응답 지연으로 UX가 망가짐
 
+## 결정된 항목
+
+| # | 항목 | 결정 |
+|---|---|---|
+| 2 | vLLM 호스팅 | 별도 컨테이너 또는 외부 GPU 서버 (compose 에서 제거됨) |
+| 3 | vLLM 모델 (챗봇) | **`thillaic/CBT-Copilot`** (Llama-3.2-3B 기반 CBT LoRA) |
+| 4 | 분석 트리거 | **`BackgroundTasks`** (Celery 전환 시 `services/diary_service.py` 만 수정) |
+| 8 | 인증 | **Supabase Auth** (자체 JWT 제거) |
+| - | 주간 리포트 LLM | **Gemini API** (`gemini-2.5-flash`) |
+| - | DB | **Supabase Postgres** (로컬 db 컨테이너 제거) |
+| - | 언어 | **영어** (사용자 입력 / 프롬프트 모두) |
+
 ## 결정 대기 중인 항목
 
-[PLAN.md §8](PLAN.md#8-결정해야-할-것) 의 8개 결정 사항 중 다음이 미정 상태이며,
-정해지기 전엔 해당 영역에 대한 큰 변경 자제:
-
-1. festival/seoul_event 기존 코드 처리 (권장: 일기 도메인으로 전부 갈아엎기)
-2. vLLM 호스팅 방식
-3. vLLM 모델 선택
-4. 분석 트리거 방식 (BackgroundTasks / Celery / asyncio.create_task)
-5. 진행 상태 전달 (폴링 / SSE / WebSocket)
-6. 노래 데이터 출처 (LLM 텍스트만 / Spotify / YouTube)
-7. 일기 수정 시 재분석 정책
-8. 인증 필수 여부
+1. festival/seoul_event 기존 legacy 코드 일괄 삭제 시점
+2. 감정 분류 모델 (사용자 탐색 중 — CBT-Copilot 와 같은 프로세스에서 돌릴지, 별도 분류기를 둘지)
+3. 진행 상태 전달 (폴링 / SSE / **Supabase Realtime** 가 유력)
+4. 노래 데이터 출처 (LLM 텍스트 / Spotify / YouTube)
+5. 일기 수정 시 재분석 정책
 
 ## 빠른 명령어 참조
 

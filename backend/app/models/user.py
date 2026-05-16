@@ -1,28 +1,21 @@
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class UserCreate(BaseModel):
-    email: str = Field(min_length=3, max_length=255)
-    nickname: str = Field(min_length=1, max_length=50)
-    password: str = Field(min_length=8, max_length=128)
-
-
-class UserLogin(BaseModel):
-    email: str
-    password: str
-
-
 class UserOut(BaseModel):
-    id: int
-    email: str
-    nickname: str
+    """GET /auth/me 응답 — 백엔드가 보관하는 profile 정보."""
+
+    id: UUID
+    email: str | None = None
+    nickname: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+class ProfileUpdate(BaseModel):
+    """PATCH /auth/me 요청 — 닉네임 등 앱 도메인 필드 변경."""
+
+    nickname: str | None = Field(None, min_length=1, max_length=50)
