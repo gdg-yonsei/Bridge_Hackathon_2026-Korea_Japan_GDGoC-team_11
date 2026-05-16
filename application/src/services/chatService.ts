@@ -19,13 +19,22 @@ export type ConversationDetail = Conversation & {
 };
 
 export const chatService = {
-  async getOrCreate(diaryEntryId: number): Promise<Conversation> {
-    const list = await api.get<Conversation[]>(`/conversations?diary_id=${diaryEntryId}`);
-    if (list.length > 0) return list[0];
+  async list(diaryEntryId?: number): Promise<Conversation[]> {
+    const query = diaryEntryId != null ? `?diary_id=${diaryEntryId}` : '';
+    return api.get<Conversation[]>(`/conversations${query}`);
+  },
+
+  async create(diaryEntryId?: number): Promise<Conversation> {
     return api.post<Conversation>('/conversations', {
-      diary_entry_id: diaryEntryId,
-      title: 'Chat about today',
+      diary_entry_id: diaryEntryId ?? null,
+      title: 'New Chat',
     });
+  },
+
+  async getOrCreate(diaryEntryId: number): Promise<Conversation> {
+    const list = await chatService.list(diaryEntryId);
+    if (list.length > 0) return list[0];
+    return chatService.create(diaryEntryId);
   },
 
   async getDetail(conversationId: number): Promise<ConversationDetail> {

@@ -10,15 +10,14 @@ import {
 } from 'react-native';
 import { Text, IconButton, Surface, useTheme } from 'react-native-paper';
 import { useLocalSearchParams, router } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { chatService, type Message } from '@/services/chatService';
 
-export default function ChatScreen() {
+export default function ChatRoomScreen() {
   const theme = useTheme();
-  const { diaryEntryId } = useLocalSearchParams<{ diaryEntryId: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const conversationId = Number(id);
 
-  const [conversationId, setConversationId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -26,16 +25,12 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList<Message>>(null);
 
   useEffect(() => {
-    if (!diaryEntryId) return;
-    chatService.getOrCreate(Number(diaryEntryId))
-      .then(conv => {
-        setConversationId(conv.id);
-        return chatService.getDetail(conv.id);
-      })
+    if (!conversationId) return;
+    chatService.getDetail(conversationId)
       .then(detail => setMessages(detail.messages))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [diaryEntryId]);
+  }, [conversationId]);
 
   const scrollToEnd = useCallback(() => {
     listRef.current?.scrollToEnd({ animated: true });
@@ -43,7 +38,7 @@ export default function ChatScreen() {
 
   const send = async () => {
     const trimmed = input.trim();
-    if (!trimmed || sending || conversationId === null) return;
+    if (!trimmed || sending) return;
 
     setInput('');
     setSending(true);
@@ -59,7 +54,6 @@ export default function ChatScreen() {
       const { assistant_message } = await chatService.sendMessage(conversationId, trimmed);
       setMessages(prev => [...prev, assistant_message]);
     } catch {
-      // remove optimistic message on failure
       setMessages(prev => prev.slice(0, -1));
     } finally {
       setSending(false);

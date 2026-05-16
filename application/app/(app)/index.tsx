@@ -223,6 +223,8 @@ export default function HomeScreen() {
         >
           <Menu.Item onPress={() => setMenuVisible(false)} title="Calendar" leadingIcon="calendar" />
           <Divider />
+          <Menu.Item onPress={() => { setMenuVisible(false); router.push('/chat'); }} title="Chat" leadingIcon="chat-outline" />
+          <Divider />
           <Menu.Item onPress={() => { setMenuVisible(false); router.push('/report'); }} title="Report" leadingIcon="chart-bar" />
         </Menu>
 
@@ -335,7 +337,7 @@ export default function HomeScreen() {
       {hasTodayEntry && (
         <Pressable
           style={[styles.fabChat, { bottom: fabBottom, backgroundColor: theme.colors.secondary }]}
-          onPress={() => router.push({ pathname: '/chat', params: { diaryEntryId: todayEntry.entry_id } })}
+          onPress={() => router.push('/chat')}
         >
           <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>채팅하기</Text>
         </Pressable>
