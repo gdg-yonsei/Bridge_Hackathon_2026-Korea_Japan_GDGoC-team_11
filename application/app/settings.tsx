@@ -1,17 +1,20 @@
 import { View, StyleSheet, Alert, ScrollView } from 'react-native';
-import { Text, List, Divider, Switch, ActivityIndicator, Surface, TouchableRipple, useTheme } from 'react-native-paper';
+import { Text, List, Divider, Switch, ActivityIndicator, Surface, TouchableRipple, useTheme, Button } from 'react-native-paper';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/context/AuthContext';
 import { useStorageUsage } from '@/hooks/useStorageUsage';
 import { useScreenLock } from '@/hooks/useScreenLock';
+import { useCreateDiaryMutation } from '@/store/api/diaryApi';
+import { MOCK_ENTRIES } from '@/data/mock';
 
 export default function SettingsScreen() {
   const theme = useTheme();
   const { user, signOut } = useAuth();
   const storage = useStorageUsage();
   const screenLock = useScreenLock();
+  const [createDiary, { isLoading: isSeeding }] = useCreateDiaryMutation();
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -29,6 +32,38 @@ export default function SettingsScreen() {
       return;
     }
     await screenLock.toggle();
+  };
+
+  const handleSeedData = async () => {
+    Alert.alert(
+      'Seed Dummy Data',
+      'This will create 15 diary entries from May 1 to May 15, 2026. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Seed', 
+          onPress: async () => {
+            try {
+              const entries = Object.entries(MOCK_ENTRIES).sort();
+              for (const [date, data] of entries) {
+                // Ensure date is in the requested range
+                if (date >= '2026-05-01' && date <= '2026-05-15') {
+                  await createDiary({
+                    entry_date: date,
+                    title: `Entry for ${date}`,
+                    content: data.snippet,
+                  }).unwrap();
+                }
+              }
+              Alert.alert('Success', 'Dummy data seeded successfully!');
+            } catch (err) {
+              console.error('Failed to seed data:', err);
+              Alert.alert('Error', 'Failed to seed some or all data.');
+            }
+          } 
+        },
+      ]
+    );
   };
 
   return (
@@ -141,6 +176,20 @@ export default function SettingsScreen() {
             left={() => <List.Icon icon="information-outline" color={theme.colors.outline} />}
             titleStyle={{ color: theme.colors.onSurface }}
             descriptionStyle={{ color: theme.colors.outline }}
+          />
+        </Surface>
+
+        {/* Debug */}
+        <Text variant="labelMedium" style={[styles.sectionLabel, { color: theme.colors.error }]}>
+          Debug
+        </Text>
+        <Surface style={[styles.card, { borderRadius: theme.roundness * 3 }]} elevation={0}>
+          <List.Item
+            title="Seed Dummy Data"
+            description="Create 15 entries for May 2026"
+            left={() => <List.Icon icon="bug-outline" color={theme.colors.error} />}
+            onPress={handleSeedData}
+            right={() => isSeeding && <ActivityIndicator size={20} style={{ alignSelf: 'center', marginRight: 16 }} />}
           />
         </Surface>
       </ScrollView>

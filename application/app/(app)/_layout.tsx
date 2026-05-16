@@ -45,7 +45,7 @@ export default function AppLayout() {
         name="chat"
         options={{
           title: 'Chat',
-          tabBarIcon: ({ color, size }) => <TabIcon name="robot-happy-outline" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <TabIcon name="chat-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen name="debug" options={{ href: null }} />

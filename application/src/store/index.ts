@@ -3,16 +3,18 @@ import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { baseApi } from './api/baseApi';
 import { diarySlice } from './slices/diarySlice';
+import { reportSlice } from './slices/reportSlice';
 
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['diary'],
+  whitelist: ['diary', 'report'],
 };
 
 const rootReducer = combineReducers({
   [baseApi.reducerPath]: baseApi.reducer,
   diary: diarySlice.reducer,
+  report: reportSlice.reducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

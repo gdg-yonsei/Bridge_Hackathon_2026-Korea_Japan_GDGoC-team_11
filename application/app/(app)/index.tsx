@@ -12,6 +12,7 @@ import { Screen } from '@/components/Screen';
 import { EMOTION_COLORS, EMOTION_LABELS, EMOTION_EMOJIS } from '@/data/mock';
 import type { Emotion } from '@/data/mock';
 import { diaryService, decodeContent, type CalendarEntry, type DiaryDetail } from '@/services/diaryService';
+import { chatService } from '@/services/chatService';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CELL_SIZE = Math.floor((Dimensions.get('window').width - 32) / 7);
@@ -223,6 +224,8 @@ export default function HomeScreen() {
         >
           <Menu.Item onPress={() => setMenuVisible(false)} title="Calendar" leadingIcon="calendar" />
           <Divider />
+          <Menu.Item onPress={() => { setMenuVisible(false); router.push('/chat'); }} title="Chat" leadingIcon="chat-outline" />
+          <Divider />
           <Menu.Item onPress={() => { setMenuVisible(false); router.push('/report'); }} title="Report" leadingIcon="chart-bar" />
         </Menu>
 
@@ -331,7 +334,21 @@ export default function HomeScreen() {
         />
       </ScrollView>
 
-      {/* ── FAB ─────────────────────────────────────────── */}
+      {/* ── FAB(s) ───────────────────────────────────────── */}
+      {hasTodayEntry && (
+        <Pressable
+          style={[styles.fabChat, { bottom: fabBottom, backgroundColor: theme.colors.secondary }]}
+          onPress={async () => {
+            const convs = await chatService.list(todayEntry.entry_id);
+            const target = convs.length > 0
+              ? convs[0]
+              : await chatService.create(todayEntry.entry_id);
+            router.push({ pathname: '/chat/[id]', params: { id: target.id } });
+          }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>채팅하기</Text>
+        </Pressable>
+      )}
       <Pressable
         style={[styles.fab, { bottom: fabBottom, backgroundColor: theme.colors.primary }]}
         onPress={() => {
@@ -519,13 +536,28 @@ const styles = StyleSheet.create({
   // FAB
   fab: {
     position: 'absolute',
-    alignSelf: 'center',
     left: (Dimensions.get('window').width - FAB_SIZE) / 2,
     width: FAB_SIZE,
     height: FAB_SIZE,
     borderRadius: FAB_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabChat: {
+    position: 'absolute',
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    height: FAB_SIZE,
+    borderRadius: 16,
     zIndex: 30,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
