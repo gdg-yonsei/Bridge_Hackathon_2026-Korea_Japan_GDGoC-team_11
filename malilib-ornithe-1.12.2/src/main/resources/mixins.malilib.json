@@ -1,0 +1,24 @@
+{
+	"required": true,
+	"package": "malilib.mixin",
+	"compatibilityLevel": "JAVA_8",
+	"minVersion": "0.8",
+	"client": [
+		"access.AbstractHorseMixin",
+		"access.DataFixerMixin",
+		"access.GuiContainerMixin",
+		"access.NBTBaseMixin",
+		"access.NBTTagLongArrayMixin",
+		"command.GuiScreenMixin",
+		"command.TabCompleterMixin",
+		"event.MinecraftMixin",
+		"input.GuiScreenMixin",
+		"input.MinecraftMixin",
+		"network.MixinNetHandlerPlayClient",
+		"render.EntityRendererMixin",
+		"render.GuiScreenMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

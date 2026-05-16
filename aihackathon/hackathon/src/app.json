@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "maeum",
+    "slug": "maeum",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#eef6f2"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.maeum.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#eef6f2"
+      },
+      "package": "com.maeum.app"
+    },
+    "plugins": [
+      "react-native-reanimated"
+    ]
+  }
+}
