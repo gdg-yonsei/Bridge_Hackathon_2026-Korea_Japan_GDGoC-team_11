@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.entity.emotion_analysis_entity import Emotion
+from app.core.enums import Emotion
 
 
 class ReportCreate(BaseModel):
@@ -12,6 +12,14 @@ class ReportCreate(BaseModel):
     period_end: date = Field(..., description="End date (inclusive)")
 
 
+class EmotionStat(BaseModel):
+    """Per-emotion aggregate over the report period."""
+
+    avg: float = Field(..., description="Mean intensity (1-10) across all analysed entries")
+    peak: int = Field(..., description="Highest intensity observed (1-10)")
+    days: int = Field(..., description="Number of entries where this was the primary emotion")
+
+
 class ReportOut(BaseModel):
     """Report response."""
 
@@ -19,7 +27,14 @@ class ReportOut(BaseModel):
     period_end: date
     dominant_emotion: Emotion
     summary: str
-    mood_chart: dict
+    mood_chart: dict[str, dict[str, int]] = Field(
+        ...,
+        description='Per-day intensities, e.g. {"2026-05-11": {"joy": 7, "sad": 3, ...}}',
+    )
+    stats: dict[str, EmotionStat] = Field(
+        ...,
+        description="Aggregated per-emotion stats over the period",
+    )
     model_name: str | None = None
     generated_at: datetime
 
@@ -27,11 +42,12 @@ class ReportOut(BaseModel):
 
 
 class ReportLLMResult(BaseModel):
-    """Gemini structured output schema for report generation."""
+    """Gemini structured output schema. Gemini only writes the narrative;
+    mood_chart, stats, and dominant_emotion are computed app-side from the
+    diary entries to avoid hallucinated numbers.
+    """
 
-    dominant_emotion: Emotion
-    summary: str = Field(..., description="3-5 sentence narrative in second person ('You felt...')")
-    mood_chart: dict[str, dict[str, float]] = Field(
+    summary: str = Field(
         ...,
-        description='Per-day emotion scores e.g. {"2026-05-11": {"joy": 0.5, "sad": 0.3, ...}}',
+        description="3-5 sentence narrative in second person, e.g. 'You felt...'",
     )

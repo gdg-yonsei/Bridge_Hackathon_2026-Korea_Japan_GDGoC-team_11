@@ -17,22 +17,20 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.enums import Emotion
 from app.entity.base_entity import Base
-from app.entity.emotion_analysis_entity import Emotion
 
 
 class Report(Base):
-    """기간 리포트 — 사용자가 start/end 를 주면 즉시 생성.
+    """Period report — generated synchronously when a user posts a date range.
 
-    UNIQUE(user_id, period_start, period_end) 로 같은 기간을 다시 트리거하면
-    이전 결과를 덮어쓴다 (regenerate semantics).
+    UNIQUE(user_id, period_start, period_end) means re-triggering the same
+    period upserts (regenerates) the row.
     """
 
     __tablename__ = "reports"
     __table_args__ = (
-        UniqueConstraint(
-            "user_id", "period_start", "period_end", name="uq_user_report_period"
-        ),
+        UniqueConstraint("user_id", "period_start", "period_end", name="uq_user_report_period"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -45,6 +43,7 @@ class Report(Base):
     dominant_emotion: Mapped[Emotion] = mapped_column(Enum(Emotion, name="emotion"))
     summary: Mapped[str] = mapped_column(Text)
     mood_chart: Mapped[dict] = mapped_column(JSONB)
+    stats: Mapped[dict] = mapped_column(JSONB)
 
     model_name: Mapped[str | None] = mapped_column(String(100))
     generated_at: Mapped[datetime] = mapped_column(

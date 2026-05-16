@@ -7,13 +7,11 @@ retrieval and profile updates.
 """
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_db
 from app.entity.user_entity import User
 from app.models.user import ProfileUpdate, UserOut
-from app.repository.user_repo import UserRepository
-from app.core.dependencies import get_db
-from sqlalchemy.orm import Session
 
 router = APIRouter()
 

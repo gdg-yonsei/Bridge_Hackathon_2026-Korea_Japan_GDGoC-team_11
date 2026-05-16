@@ -2,20 +2,20 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.entity.diary_entry_entity import DiaryStatus
-from app.entity.emotion_analysis_entity import Emotion
-from app.models.emotion import EmotionAnalysisOut
-from app.models.song import SongRecOut
+from app.core.enums import DiaryStatus, Emotion
 
 
 class DiaryAnalysisLLMResult(BaseModel):
-    """Gemini structured output schema for diary emotion analysis."""
+    """Gemini structured output schema for diary emotion analysis.
 
-    primary_emotion: Emotion
-    scores: dict[str, float] = Field(
-        ...,
-        description='Emotion scores summing to ~1.0, e.g. {"joy": 0.6, "sad": 0.1, ...}',
-    )
+    Intensities are integers in [1, 10] — 1 is barely present, 10 is intense.
+    """
+
+    joy: int = Field(..., ge=1, le=10)
+    sad: int = Field(..., ge=1, le=10)
+    anger: int = Field(..., ge=1, le=10)
+    anxiety: int = Field(..., ge=1, le=10)
+    calm: int = Field(..., ge=1, le=10)
     summary: str = Field(
         ...,
         description="One sentence summarising the emotional tone of the entry.",
@@ -41,6 +41,14 @@ class DiaryAccepted(BaseModel):
     status: DiaryStatus
 
 
+class SongOut(BaseModel):
+    rank: int
+    title: str
+    artist: str
+    reason: str | None = None
+    external_url: str | None = None
+
+
 class DiaryListItem(BaseModel):
     """Calendar monthly view — one entry per day."""
 
@@ -53,16 +61,26 @@ class DiaryListItem(BaseModel):
 
 
 class DiaryDetail(BaseModel):
-    """GET /diary/{id} — single entry with analysis result."""
+    """GET /diary/{id} — flat shape matching the diary_entries row.
+
+    The five `*_intensity` fields are integers in [1, 10] when analysis
+    is complete; null while pending or on failure.
+    """
 
     id: int
     entry_date: date
     title: str | None
     content: str
     status: DiaryStatus
+    primary_emotion: Emotion | None = None
+    joy_intensity: int | None = None
+    sad_intensity: int | None = None
+    anger_intensity: int | None = None
+    anxiety_intensity: int | None = None
+    calm_intensity: int | None = None
+    emotion_summary: str | None = None
+    songs: list[SongOut] | None = None
     created_at: datetime
     updated_at: datetime
-    analysis: EmotionAnalysisOut | None = None
-    songs: list[SongRecOut] = []
 
     model_config = ConfigDict(from_attributes=True)

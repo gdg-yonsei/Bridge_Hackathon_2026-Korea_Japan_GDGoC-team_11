@@ -2,7 +2,7 @@
 
 > Project name: _TBD_
 
-**Emotion Diary Service** (GDGoC Team 1).
+**Emotion Diary Service** (GDGoC Team 11).
 Users write diary entries; the backend automatically classifies emotions, displays them on a calendar, generates summaries, song recommendations, and period-based reports.
 
 - Detailed design: [PLAN.md](PLAN.md)

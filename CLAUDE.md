@@ -24,27 +24,32 @@ This file contains the project context and rules Claude Code must follow when wo
 ## Domain Model Summary
 
 ```
-users ── diary_entries ── emotion_analyses (1:1)
-                       └─ song_recommendations (1:N)
-       └─ reports
+auth.users ── public.profiles ── diary_entries (emotion analysis + songs inlined as JSONB)
+                              ├─ reports
+                              └─ conversations ── messages
 ```
 
-See [PLAN.md §3](PLAN.md#3-데이터-모델) for full column definitions.
+- Emotion analysis lives directly on `diary_entries`: one `int` column per emotion (`joy_intensity`, `sad_intensity`, `anger_intensity`, `anxiety_intensity`, `calm_intensity`) on a 1..10 scale, plus `primary_emotion` (the argmax computed app-side), `emotion_summary`, `emotion_model`, and `emotion_raw`. There is no separate `emotion_analyses` table any more.
+- Song recommendations live in a `songs jsonb` column on `diary_entries` (array of objects). Generation is not implemented — the column stays `NULL` until that lands.
+- A diary entry can have **multiple** conversations, and `conversations.diary_entry_id` is **nullable** so users can start a chat without binding it to a diary.
+- Period reports include a `stats` jsonb column with `{emotion: {avg, peak, days}}`. `mood_chart`, `stats`, and `dominant_emotion` are computed app-side from the entries (Gemini only writes the narrative `summary`).
+
+See [PLAN.md §3](PLAN.md#3-데이터-모델) for the older relational sketch (now superseded by the inlined shape).
 
 ## Directory Conventions
 
+- `backend/app/core/enums.py` — Shared domain enums (`DiaryStatus`, `Emotion`, `MessageRole`); imported by both entity and models layers
 - `backend/app/entity/` — SQLAlchemy ORM classes (DB mapping)
 - `backend/app/models/` — Pydantic schemas (API DTOs)
 - `backend/app/repository/` — ORM-based CRUD abstraction
-- `backend/app/services/` — Business logic, external APIs, LLM calls
+- `backend/app/services/` — Business logic, external APIs, LLM calls (background jobs live here too — analysis trigger is a `BackgroundTasks` call into `services/diary_analysis_service.py`)
 - `backend/app/api/` — HTTP routing (keep thin)
-- `backend/app/worker/` — Background jobs (analysis trigger, report generation)
 
 ## Supabase Rules
 
 - **Sign-up / login is handled entirely by the frontend** via `@supabase/supabase-js`. The backend never touches passwords (no `/auth/signup` or `/auth/login` endpoints).
 - The frontend passes the Supabase `access_token` as `Authorization: Bearer <token>` to the backend.
-- The backend verifies the HS256 JWT in [core/security.py](backend/app/core/security.py) using `SUPABASE_JWT_SECRET`.
+- The backend verifies the JWT in [core/security.py](backend/app/core/security.py) by fetching JWKS from `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` and validating ES256 signatures. HS256 + `SUPABASE_JWT_SECRET` is retained only as a fallback for legacy tokens.
 - After verification, [core/dependencies.py](backend/app/core/dependencies.py) `get_current_user` upserts a `public.profiles` row — same PK as `auth.users.id` (UUID).
 - All `user_id` fields are **UUID** (not integer). entity / repository / route signatures must all use UUID.
 - **Row-Level Security (RLS)** is enabled on all user data tables. Manual checks like `entry.user_id != user.id` in routers are a secondary safeguard only — the DB enforces isolation.
