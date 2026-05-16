@@ -2,9 +2,9 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Dimensions,
   Modal, ActivityIndicator, Image,
-  NativeSyntheticEvent, NativeScrollEvent, Alert,
+  NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
-import { Text, Surface, useTheme, Menu, Divider, IconButton } from 'react-native-paper';
+import { Text, Surface, useTheme, Menu, Divider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +12,6 @@ import { Screen } from '@/components/Screen';
 import { EMOTION_COLORS, EMOTION_LABELS, EMOTION_EMOJIS } from '@/data/mock';
 import type { Emotion } from '@/data/mock';
 import { diaryService, decodeContent, type CalendarEntry, type DiaryDetail } from '@/services/diaryService';
-import { useGetConversationsQuery, useCreateConversationMutation } from '@/store/api/chatApi';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CELL_SIZE = Math.floor((Dimensions.get('window').width - 32) / 7);
@@ -163,37 +162,6 @@ export default function HomeScreen() {
   const [selectedKey, setSelectedKey] = useState<string>(toKey(TODAY.year, TODAY.month, TODAY.day));
   const [detail, setDetail] = useState<DiaryDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-
-  // Chat logic
-  const entryId = entries[selectedKey]?.entry_id;
-  const { data: conversations, isLoading: loadingConversations } = useGetConversationsQuery(
-    { diary_id: entryId },
-    { skip: !entryId }
-  );
-  const [createConversation, { isLoading: creatingConversation }] = useCreateConversationMutation();
-
-  const handleChat = async () => {
-    if (!entryId) return;
-
-    try {
-      let conversationId: number;
-      if (conversations && conversations.length > 0) {
-        conversationId = conversations[0].id;
-      } else {
-        const date = new Date(selectedKey + 'T00:00:00');
-        const dateLabel = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const newConv = await createConversation({
-          diary_entry_id: entryId,
-          title: `Chat about ${dateLabel}`,
-        }).unwrap();
-        conversationId = newConv.id;
-      }
-      router.push({ pathname: '/chat', params: { conversationId } });
-    } catch (err) {
-      console.error('Failed to start conversation:', err);
-      Alert.alert('Error', 'Failed to start a conversation.');
-    }
-  };
 
   useEffect(() => {
     setLoadingEntries(true);
@@ -360,12 +328,18 @@ export default function HomeScreen() {
           detail={detail}
           loading={loadingDetail}
           theme={theme}
-          onChat={handleChat}
-          chatLoading={loadingConversations || creatingConversation}
         />
       </ScrollView>
 
-      {/* ── FAB ─────────────────────────────────────────── */}
+      {/* ── FAB(s) ───────────────────────────────────────── */}
+      {hasTodayEntry && (
+        <Pressable
+          style={[styles.fabChat, { bottom: fabBottom, backgroundColor: theme.colors.secondary }]}
+          onPress={() => router.push({ pathname: '/chat', params: { diaryEntryId: todayEntry.entry_id } })}
+        >
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>채팅하기</Text>
+        </Pressable>
+      )}
       <Pressable
         style={[styles.fab, { bottom: fabBottom, backgroundColor: theme.colors.primary }]}
         onPress={() => {
@@ -392,15 +366,13 @@ export default function HomeScreen() {
 }
 
 function SelectedDayCard({
-  dateKey, calEntry, detail, loading, theme, onChat, chatLoading,
+  dateKey, calEntry, detail, loading, theme,
 }: {
   dateKey: string;
   calEntry: CalendarEntry | null;
   detail: DiaryDetail | null;
   loading: boolean;
   theme: ReturnType<typeof useTheme>;
-  onChat: () => void;
-  chatLoading: boolean;
 }) {
   const date = new Date(dateKey + 'T00:00:00');
   const dateLabel = date.toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric' });
@@ -422,32 +394,13 @@ function SelectedDayCard({
         <Text style={{ fontSize: 24, fontWeight: '700', color: accentColor, flex: 1 }}>
           {dateLabel}
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          {calEntry && (
-            <>
-              <IconButton
-                icon="chat-processing-outline"
-                size={24}
-                iconColor={accentColor}
-                onPress={onChat}
-                disabled={chatLoading}
-              />
-              <IconButton
-                icon="pencil-outline"
-                size={24}
-                iconColor={accentColor}
-                onPress={() => router.push({ pathname: '/write', params: { id: calEntry.entry_id } })}
-              />
-            </>
-          )}
-          {emotion && EMOTION_IMAGES[emotion] && (
-            <Image
-              source={EMOTION_IMAGES[emotion]}
-              style={{ width: 40, height: 40 }}
-              resizeMode="contain"
-            />
-          )}
-        </View>
+        {emotion && EMOTION_IMAGES[emotion] && (
+          <Image
+            source={EMOTION_IMAGES[emotion]}
+            style={{ width: 40, height: 40 }}
+            resizeMode="contain"
+          />
+        )}
       </View>
 
       {/* loading */}
@@ -574,13 +527,28 @@ const styles = StyleSheet.create({
   // FAB
   fab: {
     position: 'absolute',
-    alignSelf: 'center',
     left: (Dimensions.get('window').width - FAB_SIZE) / 2,
     width: FAB_SIZE,
     height: FAB_SIZE,
     borderRadius: FAB_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabChat: {
+    position: 'absolute',
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 18,
+    height: FAB_SIZE,
+    borderRadius: 16,
     zIndex: 30,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

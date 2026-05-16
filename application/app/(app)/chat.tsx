@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,154 +9,130 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Text, IconButton, Surface, useTheme } from 'react-native-paper';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
-import { useGetConversationQuery, usePostMessageMutation } from '@/store/api/chatApi';
-import type { Message } from '@/types/chat';
+import { chatService, type Message } from '@/services/chatService';
 
 export default function ChatScreen() {
   const theme = useTheme();
-  const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
-  const id = Number(conversationId);
+  const { diaryEntryId } = useLocalSearchParams<{ diaryEntryId: string }>();
 
-  const { data: conversation, isLoading, isError, refetch } = useGetConversationQuery(id, {
-    skip: !id,
-  });
-  const [postMessage, { isLoading: isPosting }] = usePostMessageMutation();
-
+  const [conversationId, setConversationId] = useState<number | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList<Message>>(null);
 
-  const messages = conversation?.messages || [];
+  useEffect(() => {
+    if (!diaryEntryId) return;
+    chatService.getOrCreate(Number(diaryEntryId))
+      .then(conv => {
+        setConversationId(conv.id);
+        return chatService.getDetail(conv.id);
+      })
+      .then(detail => setMessages(detail.messages))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [diaryEntryId]);
+
+  const scrollToEnd = useCallback(() => {
+    listRef.current?.scrollToEnd({ animated: true });
+  }, []);
 
   const send = async () => {
     const trimmed = input.trim();
-    if (!trimmed || isPosting) return;
+    if (!trimmed || sending || conversationId === null) return;
 
     setInput('');
+    setSending(true);
+
+    const optimisticUser: Message = {
+      role: 'user',
+      content: trimmed,
+      created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimisticUser]);
+
     try {
-      await postMessage({
-        conversationId: id,
-        body: { message: trimmed },
-      }).unwrap();
-      // Scroll to end after sending is handled by useEffect on messages change
-    } catch (err) {
-      console.error('Failed to send message:', err);
-      setInput(trimmed); // Restore input on failure
+      const { assistant_message } = await chatService.sendMessage(conversationId, trimmed);
+      setMessages(prev => [...prev, assistant_message]);
+    } catch {
+      // remove optimistic message on failure
+      setMessages(prev => prev.slice(0, -1));
+    } finally {
+      setSending(false);
     }
   };
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => {
-        listRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
-  }, [messages.length]);
-
-  if (isLoading) {
-    return (
-      <Screen edges={['top', 'left', 'right']}>
-        <View style={styles.centered}>
-          <ActivityIndicator color={theme.colors.primary} size="large" />
-        </View>
-      </Screen>
-    );
-  }
-
-  if (isError) {
-    return (
-      <Screen edges={['top', 'left', 'right']}>
-        <View style={styles.centered}>
-          <Text>Failed to load conversation.</Text>
-          <IconButton icon="refresh" onPress={refetch} />
-        </View>
-      </Screen>
-    );
-  }
 
   return (
     <Screen edges={['top', 'left', 'right']}>
       {/* ── Header ─────────────────────────────────── */}
-      <View
-        style={[
-          styles.header,
-          { borderBottomColor: theme.colors.surfaceVariant, borderBottomWidth: 1 },
-        ]}
-      >
+      <View style={[styles.header, { borderBottomColor: theme.colors.surfaceVariant, borderBottomWidth: 1 }]}>
+        <IconButton icon="arrow-left" size={22} onPress={() => router.back()} style={{ margin: 0 }} />
         <View style={[styles.avatar, { backgroundColor: theme.colors.primaryContainer }]}>
-          <Text style={{ fontSize: 22 }}>🤖</Text>
+          <Text style={{ fontSize: 20 }}>✨</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text variant="titleMedium" style={{ fontWeight: '700', color: theme.colors.onSurface }} numberOfLines={1}>
-            {conversation?.title || 'Chat'}
+          <Text variant="titleMedium" style={{ fontWeight: '700', color: theme.colors.onSurface }}>
+            Solis
           </Text>
           <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
-            {isPosting ? 'AI is thinking…' : 'Gemini Copilot'}
+            {sending ? 'Thinking…' : 'Ready to listen'}
           </Text>
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        {/* ── Message list ─────────────────────────── */}
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(item, index) => `${item.created_at}-${index}`}
-          contentContainerStyle={styles.messageList}
-          renderItem={({ item }) => <Bubble item={item} />}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text variant="bodyMedium" style={{ color: theme.colors.outline, textAlign: 'center' }}>
-                Start a conversation about your diary entry.
-              </Text>
-            </View>
-          }
-        />
-
-        {/* ── Input bar ────────────────────────────── */}
-        <View
-          style={[
-            styles.inputBar,
-            {
-              borderTopColor: theme.colors.surfaceVariant,
-              borderTopWidth: 1,
-              backgroundColor: theme.colors.surface,
-            },
-          ]}
-        >
-          <Surface
-            style={[
-              styles.inputWrap,
-              { backgroundColor: theme.colors.surfaceVariant, borderRadius: 24 },
-            ]}
-            elevation={0}
-          >
-            <TextInput
-              style={[styles.textInput, { color: theme.colors.onSurface }]}
-              placeholder="Message..."
-              placeholderTextColor={theme.colors.outline}
-              value={input}
-              onChangeText={setInput}
-              onSubmitEditing={send}
-              returnKeyType="send"
-              multiline
-              editable={!isPosting}
-            />
-          </Surface>
-          <IconButton
-            icon="send"
-            size={22}
-            iconColor={input.trim() && !isPosting ? theme.colors.primary : theme.colors.outline}
-            onPress={send}
-            disabled={!input.trim() || isPosting}
-          />
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={theme.colors.primary} />
         </View>
-      </KeyboardAvoidingView>
+      ) : (
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(_, i) => String(i)}
+            contentContainerStyle={styles.messageList}
+            onContentSizeChange={scrollToEnd}
+            ListEmptyComponent={
+              <Text style={{ color: theme.colors.outline, textAlign: 'center', marginTop: 32 }}>
+                Say hi to start the conversation.
+              </Text>
+            }
+            renderItem={({ item }) => <Bubble item={item} />}
+          />
+
+          {sending && (
+            <View style={styles.typingRow}>
+              <Text style={{ color: theme.colors.outline, fontSize: 20, letterSpacing: 2 }}>···</Text>
+            </View>
+          )}
+
+          <View style={[styles.inputBar, { borderTopColor: theme.colors.surfaceVariant, borderTopWidth: 1, backgroundColor: theme.colors.surface }]}>
+            <Surface style={[styles.inputWrap, { backgroundColor: theme.colors.surfaceVariant, borderRadius: 24 }]} elevation={0}>
+              <TextInput
+                style={[styles.textInput, { color: theme.colors.onSurface }]}
+                placeholder="Share what's on your mind…"
+                placeholderTextColor={theme.colors.outline}
+                value={input}
+                onChangeText={setInput}
+                onSubmitEditing={send}
+                returnKeyType="send"
+                multiline
+              />
+            </Surface>
+            <IconButton
+              icon="send"
+              size={22}
+              iconColor={input.trim() && !sending ? theme.colors.primary : theme.colors.outline}
+              onPress={send}
+              disabled={!input.trim() || sending}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      )}
     </Screen>
   );
 }
@@ -167,21 +143,18 @@ function Bubble({ item }: { item: Message }) {
 
   return (
     <View style={[styles.bubbleRow, isUser && styles.bubbleRowUser]}>
-      <View
-        style={[
-          styles.bubble,
-          isUser
-            ? { backgroundColor: theme.colors.primary, borderBottomRightRadius: 4 }
-            : { backgroundColor: theme.colors.surfaceVariant, borderBottomLeftRadius: 4 },
-        ]}
-      >
-        <Text
-          style={{
-            color: isUser ? '#fff' : theme.colors.onSurface,
-            lineHeight: 20,
-            fontSize: 14,
-          }}
-        >
+      {!isUser && (
+        <View style={[styles.botAvatar, { backgroundColor: theme.colors.primaryContainer }]}>
+          <Text style={{ fontSize: 14 }}>✨</Text>
+        </View>
+      )}
+      <View style={[
+        styles.bubble,
+        isUser
+          ? { backgroundColor: theme.colors.primary, borderBottomRightRadius: 4 }
+          : { backgroundColor: theme.colors.surfaceVariant, borderBottomLeftRadius: 4 },
+      ]}>
+        <Text style={{ color: isUser ? '#fff' : theme.colors.onSurface, lineHeight: 20, fontSize: 14 }}>
           {item.content}
         </Text>
       </View>
@@ -190,32 +163,38 @@ function Bubble({ item }: { item: Message }) {
 }
 
 const styles = StyleSheet.create({
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  botAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+    alignSelf: 'flex-end',
   },
   messageList: {
     padding: 16,
     gap: 10,
-    paddingBottom: 20,
+    paddingBottom: 8,
   },
   bubbleRow: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
     marginBottom: 8,
   },
   bubbleRowUser: {
@@ -227,9 +206,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 18,
   },
-  emptyState: {
-    padding: 40,
-    alignItems: 'center',
+  typingRow: {
+    paddingHorizontal: 20,
+    paddingBottom: 4,
   },
   inputBar: {
     flexDirection: 'row',

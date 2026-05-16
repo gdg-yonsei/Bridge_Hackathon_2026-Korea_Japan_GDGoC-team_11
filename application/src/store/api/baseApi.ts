@@ -21,6 +21,6 @@ const axiosBaseQuery: BaseQueryFn<AxiosRequestConfig, unknown, unknown> = async 
 export const baseApi = createApi({
   reducerPath: 'api',
   baseQuery: axiosBaseQuery,
-  tagTypes: ['Diary', 'Report', 'Conversation'],
+  tagTypes: ['Diary', 'Report'],
   endpoints: () => ({}),
 });
