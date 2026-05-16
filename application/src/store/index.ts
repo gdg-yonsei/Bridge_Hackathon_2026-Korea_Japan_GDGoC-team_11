@@ -2,18 +2,16 @@ import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { baseApi } from './api/baseApi';
-import { authSlice } from './slices/authSlice';
 import { diarySlice } from './slices/diarySlice';
 
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['diary', 'auth'],
+  whitelist: ['diary'],
 };
 
 const rootReducer = combineReducers({
   [baseApi.reducerPath]: baseApi.reducer,
-  auth: authSlice.reducer,
   diary: diarySlice.reducer,
 });
 

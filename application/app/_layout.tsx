@@ -5,6 +5,7 @@ import { PaperProvider } from 'react-native-paper';
 import { useColorScheme } from 'react-native';
 import { store, persistor } from '@/store';
 import { lightTheme, darkTheme } from '@/theme';
+import { AuthProvider } from '@/context/AuthContext';
 
 export default function RootLayout() {
   const scheme = useColorScheme();
@@ -14,7 +15,9 @@ export default function RootLayout() {
     <Provider store={store}>
       <PersistGate persistor={persistor}>
         <PaperProvider theme={theme}>
-          <Stack screenOptions={{ headerShown: false }} />
+          <AuthProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </AuthProvider>
         </PaperProvider>
       </PersistGate>
     </Provider>
