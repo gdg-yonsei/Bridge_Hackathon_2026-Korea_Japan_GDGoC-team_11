@@ -10,22 +10,78 @@ begin
   if not exists (select 1 from pg_type where typname = 'diary_status') then
     create type public.diary_status as enum ('pending', 'analyzing', 'done', 'failed');
   end if;
-  if not exists (select 1 from pg_type where typname = 'emotion') then
-    create type public.emotion as enum (
-      'joy', 'sad', 'anger', 'anxiety', 'calm',
-      'embarrassment', 'envy', 'boredom', 'nostalgia'
-    );
-  end if;
   if not exists (select 1 from pg_type where typname = 'message_role') then
     create type public.message_role as enum ('user', 'assistant', 'system');
   end if;
 end$$;
 
--- Expand legacy 5-value emotion enum with the 4 new values (no-op if present).
-alter type public.emotion add value if not exists 'embarrassment';
-alter type public.emotion add value if not exists 'envy';
-alter type public.emotion add value if not exists 'boredom';
-alter type public.emotion add value if not exists 'nostalgia';
+-- Emotion enum migration. Three cases handled idempotently:
+--   1. Fresh DB        — emotion type doesn't exist → create with 6 values.
+--   2. Legacy 9-value  — type exists without 'comfort' → swap via new type.
+--   3. Already current — 6-value enum with 'comfort' → no-op.
+-- Postgres enums can't drop or rename values in place, so the legacy case
+-- creates emotion_new, ALTERs the columns with a USING mapping, then drops
+-- the old type. Rows whose old emotion has no clean mapping (embarrassment,
+-- envy, boredom, nostalgia) lose their primary_emotion (set to NULL).
+do $$
+declare
+  has_emotion boolean;
+  has_comfort boolean;
+begin
+  select exists(select 1 from pg_type where typname = 'emotion') into has_emotion;
+  if has_emotion then
+    select exists(
+      select 1 from pg_enum
+      join pg_type on pg_enum.enumtypid = pg_type.oid
+      where pg_type.typname = 'emotion' and pg_enum.enumlabel = 'comfort'
+    ) into has_comfort;
+  else
+    has_comfort := false;
+  end if;
+
+  if not has_emotion then
+    create type public.emotion as enum (
+      'joy', 'calm', 'comfort', 'sad', 'anxious', 'angry'
+    );
+  elsif not has_comfort then
+    -- Build the new type alongside the old one.
+    create type public.emotion_new as enum (
+      'joy', 'calm', 'comfort', 'sad', 'anxious', 'angry'
+    );
+
+    -- Reports.dominant_emotion is NOT NULL — rows with dropped emotion
+    -- values can't migrate, so we drop them. Hackathon-safe; at most a
+    -- handful of test rows.
+    delete from public.reports
+    where dominant_emotion::text in ('embarrassment', 'envy', 'boredom', 'nostalgia');
+
+    alter table public.diary_entries
+      alter column primary_emotion type public.emotion_new
+      using (
+        case primary_emotion::text
+          when 'anger' then 'angry'::public.emotion_new
+          when 'anxiety' then 'anxious'::public.emotion_new
+          when 'joy' then 'joy'::public.emotion_new
+          when 'calm' then 'calm'::public.emotion_new
+          when 'sad' then 'sad'::public.emotion_new
+          else null
+        end
+      );
+
+    alter table public.reports
+      alter column dominant_emotion type public.emotion_new
+      using (
+        case dominant_emotion::text
+          when 'anger' then 'angry'::public.emotion_new
+          when 'anxiety' then 'anxious'::public.emotion_new
+          else dominant_emotion::text::public.emotion_new
+        end
+      );
+
+    drop type public.emotion;
+    alter type public.emotion_new rename to emotion;
+  end if;
+end$$;
 
 -- =====================================================================
 -- 2. profiles (1:1 with auth.users)
@@ -58,7 +114,7 @@ create trigger on_auth_user_created
 
 -- =====================================================================
 -- 3. diary_entries — emotion analysis and Solis fields are stored inline.
---    `scores` carries all 9 emotions as floats in [0, 1]; `primary_emotion`
+--    `scores` carries all 6 emotions as floats in [0, 1]; `primary_emotion`
 --    is the argmax computed app-side after analysis.
 -- =====================================================================
 create table if not exists public.diary_entries (
@@ -200,11 +256,31 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "KR001",
     "name": "Dr. Kim Soo-Yeon",
     "location": "Seoul, Korea",
-    "languages": ["Korean", "English"],
-    "certifications": ["Licensed Clinical Psychologist (임상심리사 1급)", "Certified CBT Therapist", "National Mental Health Counselor"],
-    "approach": ["CBT", "Mindfulness-Based Cognitive Therapy"],
-    "specializes_in": ["anxiety", "embarrassment", "workplace stress", "self-esteem", "perfectionism"],
-    "emotions_treated": ["anxiety", "embarrassment", "anger", "sad"],
+    "languages": [
+      "Korean",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (임상심리사 1급)",
+      "Certified CBT Therapist",
+      "National Mental Health Counselor"
+    ],
+    "approach": [
+      "CBT",
+      "Mindfulness-Based Cognitive Therapy"
+    ],
+    "specializes_in": [
+      "anxiety",
+      "embarrassment",
+      "workplace stress",
+      "self-esteem",
+      "perfectionism"
+    ],
+    "emotions_treated": [
+      "anxious",
+      "angry",
+      "sad"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 10,
@@ -217,11 +293,31 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "KR002",
     "name": "Park Ji-Ho",
     "location": "Seoul, Korea",
-    "languages": ["Korean"],
-    "certifications": ["Licensed Counseling Psychologist (상담심리사 1급)", "Certified Mindfulness Instructor", "Trauma-Focused CBT Certified"],
-    "approach": ["Mindfulness", "ACT", "Trauma-Focused CBT"],
-    "specializes_in": ["sad", "nostalgia", "grief", "depression", "loss"],
-    "emotions_treated": ["sad", "nostalgia", "calm", "anxiety"],
+    "languages": [
+      "Korean"
+    ],
+    "certifications": [
+      "Licensed Counseling Psychologist (상담심리사 1급)",
+      "Certified Mindfulness Instructor",
+      "Trauma-Focused CBT Certified"
+    ],
+    "approach": [
+      "Mindfulness",
+      "ACT",
+      "Trauma-Focused CBT"
+    ],
+    "specializes_in": [
+      "sad",
+      "nostalgia",
+      "grief",
+      "depression",
+      "loss"
+    ],
+    "emotions_treated": [
+      "sad",
+      "calm",
+      "anxious"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 7,
@@ -234,11 +330,31 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "KR003",
     "name": "Dr. Choi Min-Jun",
     "location": "Busan, Korea",
-    "languages": ["Korean", "English"],
-    "certifications": ["Licensed Clinical Psychologist (임상심리사 1급)", "Anger Management Specialist", "Certified CBT Therapist"],
-    "approach": ["CBT", "Dialectical Behavior Therapy (DBT)", "Emotion Regulation"],
-    "specializes_in": ["anger", "envy", "frustration", "impulse control", "workplace conflict"],
-    "emotions_treated": ["anger", "envy", "anxiety", "embarrassment"],
+    "languages": [
+      "Korean",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (임상심리사 1급)",
+      "Anger Management Specialist",
+      "Certified CBT Therapist"
+    ],
+    "approach": [
+      "CBT",
+      "Dialectical Behavior Therapy (DBT)",
+      "Emotion Regulation"
+    ],
+    "specializes_in": [
+      "anger",
+      "envy",
+      "frustration",
+      "impulse control",
+      "workplace conflict"
+    ],
+    "emotions_treated": [
+      "angry",
+      "anxious"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 12,
@@ -251,11 +367,32 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "KR004",
     "name": "Lee Hana",
     "location": "Seoul, Korea",
-    "languages": ["Korean", "Japanese"],
-    "certifications": ["Licensed Counseling Psychologist (상담심리사 1급)", "Positive Psychology Practitioner", "Certified Joy and Wellbeing Coach"],
-    "approach": ["Positive Psychology", "Solution-Focused Therapy", "Strengths-Based"],
-    "specializes_in": ["joy", "boredom", "motivation", "life purpose", "burnout recovery"],
-    "emotions_treated": ["boredom", "joy", "calm", "sad"],
+    "languages": [
+      "Korean",
+      "Japanese"
+    ],
+    "certifications": [
+      "Licensed Counseling Psychologist (상담심리사 1급)",
+      "Positive Psychology Practitioner",
+      "Certified Joy and Wellbeing Coach"
+    ],
+    "approach": [
+      "Positive Psychology",
+      "Solution-Focused Therapy",
+      "Strengths-Based"
+    ],
+    "specializes_in": [
+      "joy",
+      "boredom",
+      "motivation",
+      "life purpose",
+      "burnout recovery"
+    ],
+    "emotions_treated": [
+      "sad",
+      "joy",
+      "calm"
+    ],
     "online_available": true,
     "in_person_available": false,
     "years_experience": 5,
@@ -268,11 +405,32 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "KR005",
     "name": "Dr. Jung Seo-Yun",
     "location": "Seoul, Korea",
-    "languages": ["Korean", "English"],
-    "certifications": ["Licensed Clinical Psychologist (임상심리사 1급)", "Schema Therapy Certified", "Shame Resilience Certified Practitioner"],
-    "approach": ["Schema Therapy", "CBT", "Shame Resilience"],
-    "specializes_in": ["embarrassment", "envy", "self-worth", "social anxiety", "people pleasing"],
-    "emotions_treated": ["embarrassment", "envy", "anxiety", "sad"],
+    "languages": [
+      "Korean",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (임상심리사 1급)",
+      "Schema Therapy Certified",
+      "Shame Resilience Certified Practitioner"
+    ],
+    "approach": [
+      "Schema Therapy",
+      "CBT",
+      "Shame Resilience"
+    ],
+    "specializes_in": [
+      "embarrassment",
+      "envy",
+      "self-worth",
+      "social anxiety",
+      "people pleasing"
+    ],
+    "emotions_treated": [
+      "anxious",
+      "angry",
+      "sad"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 9,
@@ -285,11 +443,31 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "KR006",
     "name": "Yoon Tae-Yang",
     "location": "Incheon, Korea",
-    "languages": ["Korean"],
-    "certifications": ["Licensed Counseling Psychologist (상담심리사 2급)", "Mindfulness-Based Stress Reduction (MBSR) Certified", "Sleep and Anxiety Specialist"],
-    "approach": ["MBSR", "Mindfulness", "Relaxation Therapy"],
-    "specializes_in": ["anxiety", "calm", "sleep issues", "stress", "work-life balance"],
-    "emotions_treated": ["anxiety", "calm", "boredom", "sad"],
+    "languages": [
+      "Korean"
+    ],
+    "certifications": [
+      "Licensed Counseling Psychologist (상담심리사 2급)",
+      "Mindfulness-Based Stress Reduction (MBSR) Certified",
+      "Sleep and Anxiety Specialist"
+    ],
+    "approach": [
+      "MBSR",
+      "Mindfulness",
+      "Relaxation Therapy"
+    ],
+    "specializes_in": [
+      "anxiety",
+      "calm",
+      "sleep issues",
+      "stress",
+      "work-life balance"
+    ],
+    "emotions_treated": [
+      "anxious",
+      "calm",
+      "sad"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 6,
@@ -302,11 +480,32 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "KR007",
     "name": "Dr. Han Soo-Jin",
     "location": "Daegu, Korea",
-    "languages": ["Korean", "English"],
-    "certifications": ["Licensed Clinical Psychologist (임상심리사 1급)", "Grief and Loss Specialist", "Nostalgia and Life Transitions Counselor"],
-    "approach": ["Narrative Therapy", "Existential Therapy", "Grief Counseling"],
-    "specializes_in": ["nostalgia", "sad", "grief", "life transitions", "identity"],
-    "emotions_treated": ["nostalgia", "sad", "calm", "joy"],
+    "languages": [
+      "Korean",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (임상심리사 1급)",
+      "Grief and Loss Specialist",
+      "Nostalgia and Life Transitions Counselor"
+    ],
+    "approach": [
+      "Narrative Therapy",
+      "Existential Therapy",
+      "Grief Counseling"
+    ],
+    "specializes_in": [
+      "nostalgia",
+      "sad",
+      "grief",
+      "life transitions",
+      "identity"
+    ],
+    "emotions_treated": [
+      "sad",
+      "calm",
+      "joy"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 14,
@@ -319,11 +518,31 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "KR008",
     "name": "Shin Bo-Ra",
     "location": "Seoul, Korea",
-    "languages": ["Korean"],
-    "certifications": ["Licensed Counseling Psychologist (상담심리사 1급)", "Art Therapy Certified", "Depression and Mood Disorder Specialist"],
-    "approach": ["Art Therapy", "CBT", "Interpersonal Therapy"],
-    "specializes_in": ["sad", "boredom", "depression", "creativity", "self-expression"],
-    "emotions_treated": ["sad", "boredom", "calm", "joy"],
+    "languages": [
+      "Korean"
+    ],
+    "certifications": [
+      "Licensed Counseling Psychologist (상담심리사 1급)",
+      "Art Therapy Certified",
+      "Depression and Mood Disorder Specialist"
+    ],
+    "approach": [
+      "Art Therapy",
+      "CBT",
+      "Interpersonal Therapy"
+    ],
+    "specializes_in": [
+      "sad",
+      "boredom",
+      "depression",
+      "creativity",
+      "self-expression"
+    ],
+    "emotions_treated": [
+      "sad",
+      "calm",
+      "joy"
+    ],
     "online_available": false,
     "in_person_available": true,
     "years_experience": 8,
@@ -336,11 +555,31 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "KR009",
     "name": "Dr. Oh Jae-Won",
     "location": "Seoul, Korea",
-    "languages": ["Korean", "English"],
-    "certifications": ["Licensed Clinical Psychologist (임상심리사 1급)", "Organizational Psychology Specialist", "Workplace Mental Health Certified"],
-    "approach": ["CBT", "Solution-Focused Therapy", "Coaching Psychology"],
-    "specializes_in": ["anger", "envy", "workplace stress", "leadership", "career burnout"],
-    "emotions_treated": ["anger", "envy", "anxiety", "embarrassment"],
+    "languages": [
+      "Korean",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (임상심리사 1급)",
+      "Organizational Psychology Specialist",
+      "Workplace Mental Health Certified"
+    ],
+    "approach": [
+      "CBT",
+      "Solution-Focused Therapy",
+      "Coaching Psychology"
+    ],
+    "specializes_in": [
+      "anger",
+      "envy",
+      "workplace stress",
+      "leadership",
+      "career burnout"
+    ],
+    "emotions_treated": [
+      "angry",
+      "anxious"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 11,
@@ -353,11 +592,31 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "KR010",
     "name": "Im Ye-Jin",
     "location": "Gwangju, Korea",
-    "languages": ["Korean"],
-    "certifications": ["Licensed Counseling Psychologist (상담심리사 1급)", "Youth and Young Adult Specialist", "Anxiety and Phobia Treatment Certified"],
-    "approach": ["CBT", "Exposure Therapy", "Acceptance and Commitment Therapy (ACT)"],
-    "specializes_in": ["anxiety", "embarrassment", "social anxiety", "academic stress", "self-confidence"],
-    "emotions_treated": ["anxiety", "embarrassment", "sad", "anger"],
+    "languages": [
+      "Korean"
+    ],
+    "certifications": [
+      "Licensed Counseling Psychologist (상담심리사 1급)",
+      "Youth and Young Adult Specialist",
+      "Anxiety and Phobia Treatment Certified"
+    ],
+    "approach": [
+      "CBT",
+      "Exposure Therapy",
+      "Acceptance and Commitment Therapy (ACT)"
+    ],
+    "specializes_in": [
+      "anxiety",
+      "embarrassment",
+      "social anxiety",
+      "academic stress",
+      "self-confidence"
+    ],
+    "emotions_treated": [
+      "anxious",
+      "sad",
+      "angry"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 5,
@@ -370,11 +629,32 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "JP001",
     "name": "Dr. Tanaka Yuki",
     "location": "Tokyo, Japan",
-    "languages": ["Japanese", "English"],
-    "certifications": ["Licensed Clinical Psychologist (公認心理師)", "Certified CBT Therapist (日本認知療法・認知行動療法学会)", "Mindfulness-Based Cognitive Therapy Certified"],
-    "approach": ["CBT", "MBCT", "Psychodynamic"],
-    "specializes_in": ["anxiety", "embarrassment", "workplace stress", "perfectionism", "self-worth"],
-    "emotions_treated": ["anxiety", "embarrassment", "sad", "anger"],
+    "languages": [
+      "Japanese",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (公認心理師)",
+      "Certified CBT Therapist (日本認知療法・認知行動療法学会)",
+      "Mindfulness-Based Cognitive Therapy Certified"
+    ],
+    "approach": [
+      "CBT",
+      "MBCT",
+      "Psychodynamic"
+    ],
+    "specializes_in": [
+      "anxiety",
+      "embarrassment",
+      "workplace stress",
+      "perfectionism",
+      "self-worth"
+    ],
+    "emotions_treated": [
+      "anxious",
+      "sad",
+      "angry"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 12,
@@ -387,11 +667,31 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "JP002",
     "name": "Sato Haruki",
     "location": "Osaka, Japan",
-    "languages": ["Japanese"],
-    "certifications": ["Licensed Clinical Psychologist (公認心理師)", "Mindfulness Instructor Certified", "Burnout and Fatigue Specialist"],
-    "approach": ["Mindfulness", "ACT", "Rest and Recovery Therapy"],
-    "specializes_in": ["boredom", "calm", "burnout", "fatigue", "motivation"],
-    "emotions_treated": ["boredom", "calm", "sad", "anxiety"],
+    "languages": [
+      "Japanese"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (公認心理師)",
+      "Mindfulness Instructor Certified",
+      "Burnout and Fatigue Specialist"
+    ],
+    "approach": [
+      "Mindfulness",
+      "ACT",
+      "Rest and Recovery Therapy"
+    ],
+    "specializes_in": [
+      "boredom",
+      "calm",
+      "burnout",
+      "fatigue",
+      "motivation"
+    ],
+    "emotions_treated": [
+      "sad",
+      "calm",
+      "anxious"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 8,
@@ -404,11 +704,32 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "JP003",
     "name": "Dr. Yamamoto Aiko",
     "location": "Tokyo, Japan",
-    "languages": ["Japanese", "English"],
-    "certifications": ["Licensed Clinical Psychologist (公認心理師)", "Grief and Bereavement Counselor", "Existential Therapy Certified"],
-    "approach": ["Existential Therapy", "Narrative Therapy", "Grief Counseling"],
-    "specializes_in": ["nostalgia", "sad", "grief", "meaning", "loss"],
-    "emotions_treated": ["nostalgia", "sad", "calm", "joy"],
+    "languages": [
+      "Japanese",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (公認心理師)",
+      "Grief and Bereavement Counselor",
+      "Existential Therapy Certified"
+    ],
+    "approach": [
+      "Existential Therapy",
+      "Narrative Therapy",
+      "Grief Counseling"
+    ],
+    "specializes_in": [
+      "nostalgia",
+      "sad",
+      "grief",
+      "meaning",
+      "loss"
+    ],
+    "emotions_treated": [
+      "sad",
+      "calm",
+      "joy"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 15,
@@ -421,11 +742,30 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "JP004",
     "name": "Watanabe Kenji",
     "location": "Nagoya, Japan",
-    "languages": ["Japanese"],
-    "certifications": ["Licensed Clinical Psychologist (公認心理師)", "Anger Management Specialist", "DBT Certified Therapist"],
-    "approach": ["DBT", "Emotion Regulation", "Anger Management"],
-    "specializes_in": ["anger", "envy", "frustration", "conflict resolution", "emotional regulation"],
-    "emotions_treated": ["anger", "envy", "anxiety", "embarrassment"],
+    "languages": [
+      "Japanese"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (公認心理師)",
+      "Anger Management Specialist",
+      "DBT Certified Therapist"
+    ],
+    "approach": [
+      "DBT",
+      "Emotion Regulation",
+      "Anger Management"
+    ],
+    "specializes_in": [
+      "anger",
+      "envy",
+      "frustration",
+      "conflict resolution",
+      "emotional regulation"
+    ],
+    "emotions_treated": [
+      "angry",
+      "anxious"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 10,
@@ -438,11 +778,33 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "JP005",
     "name": "Dr. Nakamura Hana",
     "location": "Tokyo, Japan",
-    "languages": ["Japanese", "Korean", "English"],
-    "certifications": ["Licensed Clinical Psychologist (公認心理師)", "Schema Therapy Certified", "Cross-Cultural Psychology Specialist"],
-    "approach": ["Schema Therapy", "CBT", "Cross-Cultural Counseling"],
-    "specializes_in": ["embarrassment", "envy", "self-worth", "cultural identity", "social pressure"],
-    "emotions_treated": ["embarrassment", "envy", "anxiety", "sad"],
+    "languages": [
+      "Japanese",
+      "Korean",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (公認心理師)",
+      "Schema Therapy Certified",
+      "Cross-Cultural Psychology Specialist"
+    ],
+    "approach": [
+      "Schema Therapy",
+      "CBT",
+      "Cross-Cultural Counseling"
+    ],
+    "specializes_in": [
+      "embarrassment",
+      "envy",
+      "self-worth",
+      "cultural identity",
+      "social pressure"
+    ],
+    "emotions_treated": [
+      "anxious",
+      "angry",
+      "sad"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 9,
@@ -455,11 +817,31 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "JP006",
     "name": "Kobayashi Rin",
     "location": "Kyoto, Japan",
-    "languages": ["Japanese"],
-    "certifications": ["Licensed Clinical Psychologist (公認心理師)", "Positive Psychology Practitioner", "Joy and Flourishing Certified Coach"],
-    "approach": ["Positive Psychology", "Strengths-Based Therapy", "Behavioral Activation"],
-    "specializes_in": ["joy", "boredom", "depression", "life satisfaction", "creativity"],
-    "emotions_treated": ["boredom", "joy", "calm", "sad"],
+    "languages": [
+      "Japanese"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (公認心理師)",
+      "Positive Psychology Practitioner",
+      "Joy and Flourishing Certified Coach"
+    ],
+    "approach": [
+      "Positive Psychology",
+      "Strengths-Based Therapy",
+      "Behavioral Activation"
+    ],
+    "specializes_in": [
+      "joy",
+      "boredom",
+      "depression",
+      "life satisfaction",
+      "creativity"
+    ],
+    "emotions_treated": [
+      "sad",
+      "joy",
+      "calm"
+    ],
     "online_available": true,
     "in_person_available": false,
     "years_experience": 6,
@@ -472,11 +854,32 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "JP007",
     "name": "Dr. Ito Masashi",
     "location": "Fukuoka, Japan",
-    "languages": ["Japanese", "English"],
-    "certifications": ["Licensed Clinical Psychologist (公認心理師)", "Workplace Mental Health Specialist", "Organizational Stress Counselor"],
-    "approach": ["CBT", "Solution-Focused Therapy", "Stress Inoculation Training"],
-    "specializes_in": ["anxiety", "anger", "workplace stress", "karoshi prevention", "work-life balance"],
-    "emotions_treated": ["anxiety", "anger", "embarrassment", "boredom"],
+    "languages": [
+      "Japanese",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (公認心理師)",
+      "Workplace Mental Health Specialist",
+      "Organizational Stress Counselor"
+    ],
+    "approach": [
+      "CBT",
+      "Solution-Focused Therapy",
+      "Stress Inoculation Training"
+    ],
+    "specializes_in": [
+      "anxiety",
+      "anger",
+      "workplace stress",
+      "karoshi prevention",
+      "work-life balance"
+    ],
+    "emotions_treated": [
+      "anxious",
+      "angry",
+      "sad"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 13,
@@ -489,11 +892,32 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "JP008",
     "name": "Fujimoto Sakura",
     "location": "Sapporo, Japan",
-    "languages": ["Japanese"],
-    "certifications": ["Licensed Clinical Psychologist (公認心理師)", "EMDR Certified Therapist", "Anxiety and Trauma Specialist"],
-    "approach": ["EMDR", "Trauma-Focused CBT", "Somatic Therapy"],
-    "specializes_in": ["anxiety", "sad", "trauma", "PTSD", "fear"],
-    "emotions_treated": ["anxiety", "sad", "anger", "calm"],
+    "languages": [
+      "Japanese"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (公認心理師)",
+      "EMDR Certified Therapist",
+      "Anxiety and Trauma Specialist"
+    ],
+    "approach": [
+      "EMDR",
+      "Trauma-Focused CBT",
+      "Somatic Therapy"
+    ],
+    "specializes_in": [
+      "anxiety",
+      "sad",
+      "trauma",
+      "PTSD",
+      "fear"
+    ],
+    "emotions_treated": [
+      "anxious",
+      "sad",
+      "angry",
+      "calm"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 11,
@@ -506,11 +930,32 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "JP009",
     "name": "Dr. Hayashi Tomoko",
     "location": "Tokyo, Japan",
-    "languages": ["Japanese", "English"],
-    "certifications": ["Licensed Clinical Psychologist (公認心理師)", "Interpersonal Therapy Certified", "Depression and Mood Specialist"],
-    "approach": ["Interpersonal Therapy", "CBT", "Behavioral Activation"],
-    "specializes_in": ["sad", "nostalgia", "depression", "relationships", "loneliness"],
-    "emotions_treated": ["sad", "nostalgia", "calm", "anxiety"],
+    "languages": [
+      "Japanese",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (公認心理師)",
+      "Interpersonal Therapy Certified",
+      "Depression and Mood Specialist"
+    ],
+    "approach": [
+      "Interpersonal Therapy",
+      "CBT",
+      "Behavioral Activation"
+    ],
+    "specializes_in": [
+      "sad",
+      "nostalgia",
+      "depression",
+      "relationships",
+      "loneliness"
+    ],
+    "emotions_treated": [
+      "sad",
+      "calm",
+      "anxious"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 9,
@@ -523,11 +968,32 @@ from jsonb_to_recordset($SEED$
     "therapist_id": "JP010",
     "name": "Shimizu Daiki",
     "location": "Yokohama, Japan",
-    "languages": ["Japanese", "English"],
-    "certifications": ["Licensed Clinical Psychologist (公認心理師)", "Acceptance and Commitment Therapy (ACT) Certified", "Mindfulness-Based Stress Reduction Certified"],
-    "approach": ["ACT", "Mindfulness", "Values-Based Therapy"],
-    "specializes_in": ["calm", "anxiety", "boredom", "values clarification", "life direction"],
-    "emotions_treated": ["calm", "anxiety", "boredom", "sad"],
+    "languages": [
+      "Japanese",
+      "English"
+    ],
+    "certifications": [
+      "Licensed Clinical Psychologist (公認心理師)",
+      "Acceptance and Commitment Therapy (ACT) Certified",
+      "Mindfulness-Based Stress Reduction Certified"
+    ],
+    "approach": [
+      "ACT",
+      "Mindfulness",
+      "Values-Based Therapy"
+    ],
+    "specializes_in": [
+      "calm",
+      "anxiety",
+      "boredom",
+      "values clarification",
+      "life direction"
+    ],
+    "emotions_treated": [
+      "calm",
+      "anxious",
+      "sad"
+    ],
     "online_available": true,
     "in_person_available": true,
     "years_experience": 7,

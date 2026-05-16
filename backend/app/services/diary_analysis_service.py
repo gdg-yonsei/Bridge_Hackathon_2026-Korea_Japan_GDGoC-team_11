@@ -11,11 +11,34 @@ from app.core.config import settings
 from app.core.enums import DiaryStatus
 from app.core.gemini_client import get_gemini_client
 from app.db.database import SessionLocal
-from app.models.diary import DiaryAnalysisLLMResult
+from app.models.diary import DiaryAnalysisLLMResult, LiveEmotionResult
 from app.repository.diary_repo import DiaryRepository
-from app.services.prompts import CLASSIFY_EMOTION_SYSTEM
+from app.services.prompts import CLASSIFY_EMOTION_SYSTEM, CLASSIFY_LIVE_SYSTEM
 
 logger = logging.getLogger(__name__)
+
+
+def live_classify(content: str) -> LiveEmotionResult:
+    """Lightweight Gemini classification for the live-preview endpoint.
+
+    No DB write, no Solis reflection fields. Optimised for short snippets
+    sent on every debounced keystroke.
+    """
+    client = get_gemini_client()
+    response = client.models.generate_content(
+        model=settings.gemini_model,
+        contents=content,
+        config=types.GenerateContentConfig(
+            system_instruction=CLASSIFY_LIVE_SYSTEM,
+            response_mime_type="application/json",
+            response_schema=LiveEmotionResult,
+            temperature=0.3,
+        ),
+    )
+    parsed: LiveEmotionResult | None = getattr(response, "parsed", None)
+    if parsed is None:
+        parsed = LiveEmotionResult.model_validate(json.loads(response.text))
+    return parsed
 
 
 def _call_gemini(title: str | None, content: str, entry_date: str) -> DiaryAnalysisLLMResult:

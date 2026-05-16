@@ -64,6 +64,16 @@ USER_ID=$(echo "$ME" | jq -r '.id')
 ok "user_id=$USER_ID"
 
 # ─────────────────────────────────────────
+bold "4a) POST /diary/preview  (live, no DB write)"
+PREV=$(curl -fsS -X POST "$API_BASE/diary/preview" "${AUTH[@]}" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"I felt anxious in the morning but calmer after a walk."}')
+PRIMARY=$(echo "$PREV" | jq -r '.primary_emotion')
+SCORES=$(echo "$PREV" | jq -c '.scores')
+[ -n "$PRIMARY" ] && [ "$PRIMARY" != "null" ] || fail "preview failed: $PREV"
+ok "live primary=$PRIMARY scores=$SCORES"
+
+# ─────────────────────────────────────────
 bold "4) POST /diary"
 DIARY=$(curl -fsS -X POST "$API_BASE/diary" "${AUTH[@]}" \
   -H "Content-Type: application/json" \

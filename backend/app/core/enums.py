@@ -10,14 +10,11 @@ class DiaryStatus(StrEnum):
 
 class Emotion(StrEnum):
     joy = "joy"
-    sad = "sad"
-    anger = "anger"
-    anxiety = "anxiety"
     calm = "calm"
-    embarrassment = "embarrassment"
-    envy = "envy"
-    boredom = "boredom"
-    nostalgia = "nostalgia"
+    comfort = "comfort"
+    sad = "sad"
+    anxious = "anxious"
+    angry = "angry"
 
 
 EMOTIONS: tuple[str, ...] = tuple(e.value for e in Emotion)
