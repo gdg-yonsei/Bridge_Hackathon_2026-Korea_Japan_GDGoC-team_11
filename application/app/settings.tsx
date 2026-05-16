@@ -49,9 +49,9 @@ export default function SettingsScreen() {
                 // Ensure date is in the requested range
                 if (date >= '2026-05-01' && date <= '2026-05-15') {
                   await createDiary({
+                    entry_date: date,
                     title: `Entry for ${date}`,
                     content: data.snippet,
-                    mood: data.emotion as any,
                   }).unwrap();
                 }
               }
