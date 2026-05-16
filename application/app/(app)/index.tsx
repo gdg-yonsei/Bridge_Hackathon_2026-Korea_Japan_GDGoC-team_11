@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
 import { Text, Surface, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { MOCK_ENTRIES, EMOTION_COLORS, EMOTION_LABELS, EMOTION_EMOJIS } from '@/data/mock';
 import type { Emotion } from '@/data/mock';
@@ -63,9 +64,14 @@ export default function HomeScreen() {
           <MaterialCommunityIcons name="chevron-left" size={26} color="#fff" />
         </Pressable>
         <Text style={styles.monthTitle}>{monthLabel}</Text>
-        <Pressable onPress={nextMonth} hitSlop={12}>
-          <MaterialCommunityIcons name="chevron-right" size={26} color="#fff" />
-        </Pressable>
+        <View style={styles.headerRight}>
+          <Pressable onPress={nextMonth} hitSlop={12}>
+            <MaterialCommunityIcons name="chevron-right" size={26} color="#fff" />
+          </Pressable>
+          <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
+            <MaterialCommunityIcons name="cog-outline" size={24} color="#fff" />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
@@ -182,6 +188,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   scroll: {
     padding: 16,
