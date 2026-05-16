@@ -198,22 +198,39 @@ curl -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
 
 ---
 
-### `GET /reports/weekly?week=2026-W20`
+### `POST /reports`
 
-주간 리포트 조회. `week`는 ISO 8601 주차 (예: `2026-W20`).
+기간(시작일·종료일)을 받아 Gemini 가 즉시 리포트를 생성. 동기 호출이라 응답까지
+**수 초 걸림** (로딩 스피너 권장). 같은 기간을 다시 호출하면 결과를 덮어쓰기.
 
-**Response 200** — `WeeklyReportOut`
+**Request** — `ReportCreate`
 ```json
 {
-  "week_start": "2026-05-11",
-  "week_end": "2026-05-17",
-  "dominant_emotion": "calm",
-  "summary": "...",
-  "mood_chart": { "Mon": {"joy": 0.5}, "Tue": {...} }
+  "period_start": "2026-05-11",
+  "period_end":   "2026-05-17"
 }
 ```
 
-> 현재 Gemini 미연동 — 자동 생성 없음. 항상 **404** 반환.
+**Response 200** — `ReportOut`
+```json
+{
+  "period_start": "2026-05-11",
+  "period_end":   "2026-05-17",
+  "dominant_emotion": "calm",
+  "summary": "You navigated a tense Monday and gradually found steadier ground...",
+  "mood_chart": {
+    "2026-05-11": { "joy": 0.2, "sad": 0.1, "anger": 0.0, "anxiety": 0.5, "calm": 0.2 },
+    "2026-05-12": { ... }
+  },
+  "model_name": "gemini-2.5-flash",
+  "generated_at": "2026-05-18T08:15:30Z"
+}
+```
+
+**Error 상태**
+- `400` — `period_end < period_start`
+- `404` — 해당 기간에 일기가 한 건도 없음
+- `502` — Gemini 호출 실패 또는 응답 JSON 파싱 실패
 
 ---
 
@@ -234,7 +251,9 @@ curl -X POST "$SUPABASE_URL/auth/v1/token?grant_type=password" \
 | `EmotionAnalysisOut` | 〃 | `DiaryDetail.analysis` |
 | `EmotionScores` | 〃 | 5개 감정 점수 (합 1.0) |
 | `SongRecOut` | [models/song.py](app/models/song.py) | `DiaryDetail.songs` 항목 |
-| `WeeklyReportOut` | [models/report.py](app/models/report.py) | `GET /reports/weekly` 응답 |
+| `ReportCreate` | [models/report.py](app/models/report.py) | `POST /reports` 요청 |
+| `ReportOut` | 〃 | `POST /reports` 응답 |
+| `ReportLLMResult` | 〃 | Gemini 구조화 출력 강제용 (내부) |
 
 #### enum 값
 
@@ -276,12 +295,13 @@ public.profiles
    │            │ entry_id (FK)
    │            │ rank, title, artist, reason, external_url
    │
-   └──< public.weekly_reports
+   └──< public.reports
           │ id (bigserial, PK)
           │ user_id (uuid, FK→profiles.id)
-          │ week_start, week_end (date)
+          │ period_start, period_end (date)
           │ dominant_emotion (enum), summary, mood_chart (jsonb)
-          │ UNIQUE (user_id, week_start)
+          │ model_name, generated_at
+          │ UNIQUE (user_id, period_start, period_end)
 ```
 
 ### 컬럼 상세
@@ -326,15 +346,17 @@ public.profiles
 | `reason` | text | nullable | |
 | `external_url` | varchar(500) | nullable | Spotify/YouTube 링크 |
 
-#### `public.weekly_reports`
+#### `public.reports`
 | 컬럼 | 타입 | 제약 | 비고 |
 |---|---|---|---|
 | `id` | bigserial | PK | |
 | `user_id` | uuid | FK→`profiles.id`, indexed | |
-| `week_start`, `week_end` | date | NOT NULL | UNIQUE with user_id (week_start) |
+| `period_start`, `period_end` | date | NOT NULL | UNIQUE with user_id (period_start, period_end) |
 | `dominant_emotion` | `emotion` enum | NOT NULL | |
-| `summary` | text | NOT NULL | Gemini가 생성할 narrative |
-| `mood_chart` | jsonb | NOT NULL | 요일별 점수 등 차트 raw data |
+| `summary` | text | NOT NULL | Gemini가 생성한 narrative (3~5문장) |
+| `mood_chart` | jsonb | NOT NULL | `{date: {emotion: score}}` |
+| `model_name` | varchar(100) | nullable | 사용된 Gemini 모델 식별자 |
+| `generated_at` | timestamptz | default `now()`, upsert 시 갱신 | |
 
 ### Row-Level Security (RLS)
 
@@ -347,7 +369,8 @@ public.profiles
 | `diary: self all` | `diary_entries` | ALL | `auth.uid() = user_id` |
 | `analysis: self read` | `emotion_analyses` | SELECT | parent diary 의 user_id == `auth.uid()` |
 | `songs: self read` | `song_recommendations` | SELECT | 〃 |
-| `report: self read` | `weekly_reports` | SELECT | `auth.uid() = user_id` |
+| `report: self read` | `reports` | SELECT | `auth.uid() = user_id` |
+| `report: self write` | `reports` | INSERT | `auth.uid() = user_id` |
 
 > `service_role` 키로 접속하면 RLS 우회 — 백엔드 admin 작업(분석 결과 INSERT 등)에서 사용.
 
@@ -362,12 +385,13 @@ backend/
 │   ├── api/                     # 라우터 (얇게 유지)
 │   │   ├── auth.py              #   GET/PATCH /me
 │   │   ├── diary.py             #   POST/GET/PUT/DELETE /diary, /reanalyze
-│   │   └── report.py            #   GET /reports/weekly
+│   │   └── report.py            #   POST /reports
 │   ├── core/
 │   │   ├── config.py            # Pydantic Settings (.env 로딩)
 │   │   ├── dependencies.py      # get_db, get_current_user (Supabase JWT)
 │   │   ├── security.py          # verify_supabase_token
-│   │   └── llm_client.py        # vLLM OpenAI-호환 클라이언트
+│   │   ├── llm_client.py        # vLLM OpenAI-호환 클라이언트 (CBT-Copilot)
+│   │   └── gemini_client.py     # Gemini API 클라이언트 (리포트)
 │   ├── db/
 │   │   ├── database.py          # 지연 엔진 + SessionLocal
 │   │   └── init_db.py           # create_all 부트스트랩 (schema.sql 권장)
@@ -377,7 +401,7 @@ backend/
 │   │   ├── diary_entry_entity.py
 │   │   ├── emotion_analysis_entity.py
 │   │   ├── song_recommendation_entity.py
-│   │   └── weekly_report_entity.py
+│   │   └── report_entity.py
 │   ├── models/                  # Pydantic DTO
 │   │   ├── user.py · diary.py · emotion.py · song.py · report.py
 │   ├── repository/              # SQLAlchemy CRUD 추상화
@@ -386,9 +410,10 @@ backend/
 │   │   ├── diary_repo.py
 │   │   ├── emotion_repo.py
 │   │   ├── song_repo.py
-│   │   └── weekly_report_repo.py
+│   │   └── report_repo.py            # upsert (regenerate)
 │   └── services/
 │       ├── diary_service.py     # 분석 트리거 (현재 stub)
+│       ├── report_service.py    # Gemini 리포트 생성 오케스트레이션
 │       └── chat_service/        # LangGraph 자리 (graph/prompts/types)
 ├── supabase/
 │   └── schema.sql               # 테이블 + 트리거 + RLS (Dashboard에 붙여넣기)
@@ -410,9 +435,9 @@ uv add --dev <package>                        # dev 그룹
 
 ## 현재 미구현 (TBD)
 
-- [ ] vLLM 연결 — `services/diary_service.py`가 placeholder 반환 중
+- [ ] vLLM 연결 — `services/diary_service.py` 가 placeholder 반환 중
 - [ ] LangGraph 노드 — `services/chat_service/graph.py` 자리만 있음
-- [ ] CBT-Copilot 챗봇 (대화 기능)
-- [ ] Gemini 주간 리포트 생성 (현재 조회만, 항상 404)
+- [ ] CBT-Copilot 챗봇 (대화 기능, 라우터 자체가 아직 없음)
+- [x] **Gemini 리포트 — 연동 완료** (`POST /reports`, GEMINI_API_KEY 필요)
 - [ ] 노래 추천 데이터 출처 결정
 - [ ] 감정 분류 모델 결정

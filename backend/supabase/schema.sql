@@ -94,21 +94,23 @@ create table if not exists public.song_recommendations (
 create index if not exists ix_song_recs_entry_id on public.song_recommendations (entry_id);
 
 -- =====================================================================
--- 6. weekly_reports
+-- 6. reports — 사용자가 기간 (start/end) 주면 Gemini 가 즉시 생성.
+--    같은 기간 재트리거 시 upsert (regenerate).
 -- =====================================================================
-create table if not exists public.weekly_reports (
+create table if not exists public.reports (
   id                bigserial primary key,
   user_id           uuid not null references public.profiles(id) on delete cascade,
-  week_start        date not null,
-  week_end          date not null,
+  period_start      date not null,
+  period_end        date not null,
   dominant_emotion  emotion not null,
   summary           text not null,
   mood_chart        jsonb not null,
+  model_name        varchar(100),
   generated_at      timestamptz not null default now(),
-  constraint uq_user_week unique (user_id, week_start)
+  constraint uq_user_report_period unique (user_id, period_start, period_end)
 );
 
-create index if not exists ix_weekly_reports_user_id on public.weekly_reports (user_id);
+create index if not exists ix_reports_user_id on public.reports (user_id);
 
 -- =====================================================================
 -- 7. Row-Level Security
@@ -119,7 +121,7 @@ alter table public.profiles            enable row level security;
 alter table public.diary_entries       enable row level security;
 alter table public.emotion_analyses    enable row level security;
 alter table public.song_recommendations enable row level security;
-alter table public.weekly_reports      enable row level security;
+alter table public.reports             enable row level security;
 
 -- 본인 프로필만 read/update
 drop policy if exists "profiles: self read"   on public.profiles;
@@ -151,7 +153,10 @@ create policy "songs: self read" on public.song_recommendations
     )
   );
 
--- 본인 주간 리포트만 조회
-drop policy if exists "report: self read" on public.weekly_reports;
-create policy "report: self read" on public.weekly_reports
+-- 본인 리포트만 조회/생성
+drop policy if exists "report: self read"  on public.reports;
+drop policy if exists "report: self write" on public.reports;
+create policy "report: self read"  on public.reports
   for select using (auth.uid() = user_id);
+create policy "report: self write" on public.reports
+  for insert with check (auth.uid() = user_id);
