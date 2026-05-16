@@ -1,1 +1,0 @@
-# SeoulEvent ORM entity — TBD

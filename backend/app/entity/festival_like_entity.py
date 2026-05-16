@@ -1,1 +1,0 @@
-# FestivalLike ORM entity — TBD

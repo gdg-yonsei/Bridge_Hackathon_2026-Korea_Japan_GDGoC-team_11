@@ -1,1 +1,0 @@
-# Festival Pydantic schemas — TBD

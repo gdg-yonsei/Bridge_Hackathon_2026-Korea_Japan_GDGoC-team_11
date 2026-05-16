@@ -1,1 +1,0 @@
-# SeoulEventLike repository — TBD
