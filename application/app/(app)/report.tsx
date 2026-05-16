@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Image, ActivityIndicator, Dimensions } from 'react-native';
-import { Text, useTheme, Button, Surface, Card } from 'react-native-paper';
+import { Text, useTheme, Button, Surface, Card, Divider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';

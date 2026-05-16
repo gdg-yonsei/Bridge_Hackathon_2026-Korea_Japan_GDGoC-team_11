@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "application",
-    "slug": "application",
+    "name": "Solis",
+    "slug": "solis",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.k2zoo.application"
     },
     "android": {
       "adaptiveIcon": {

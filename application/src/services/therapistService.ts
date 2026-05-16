@@ -14,7 +14,15 @@ function buildQuery(filter: TherapistFilter): string {
   return qs ? `?${qs}` : '';
 }
 
+export type TherapistMatchRequest = {
+  emotion?: string;
+  context?: string;
+};
+
 export const therapistService = {
   list: (filter: TherapistFilter = {}) =>
     api.get<Therapist[]>(`/therapist${buildQuery(filter)}`),
+
+  match: (body: TherapistMatchRequest) =>
+    api.post<Therapist[]>('/therapist/match', body),
 };
