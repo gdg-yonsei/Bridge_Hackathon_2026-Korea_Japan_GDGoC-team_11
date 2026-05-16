@@ -16,6 +16,7 @@ from app.db.database import SessionLocal
 from app.models.diary import DiaryAnalysisLLMResult, LiveEmotionResult
 from app.repository.diary_repo import DiaryRepository
 from app.services.prompts import CLASSIFY_EMOTION_SYSTEM, CLASSIFY_LIVE_SYSTEM
+from app.services.song_service import recommend_song
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +125,18 @@ def trigger_analysis(entry_id: int) -> None:
             result.crisis_score = max(result.crisis_score, 0.9)
             logger.warning("Crisis keyword override applied for entry %s", entry_id)
 
+        # Song recommendation is best-effort — failure (Spotify creds missing,
+        # all suggestions unresolved, Gemini blip) doesn't fail the analysis.
+        song_list: list[dict] | None = None
+        try:
+            song = recommend_song(entry.content, result)
+            if song is not None:
+                song_list = [song.model_dump(mode="json")]
+            else:
+                song_list = []
+        except Exception:
+            logger.exception("song recommendation failed for entry %s", entry_id)
+
         diary_repo.save_analysis(
             entry,
             primary_emotion=result.primary_emotion,
@@ -135,7 +148,7 @@ def trigger_analysis(entry_id: int) -> None:
             solis_message=result.solis_message,
             suggested_action=result.suggested_action,
             needs_hotline=result.needs_hotline,
-            songs=None,
+            songs=song_list,
         )
 
         diary_repo.set_status(entry, DiaryStatus.done)

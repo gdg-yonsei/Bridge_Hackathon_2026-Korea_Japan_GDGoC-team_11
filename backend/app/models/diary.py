@@ -78,10 +78,19 @@ class DiaryAccepted(BaseModel):
 
 
 class SongOut(BaseModel):
+    """One recommended track. Frontend can pick which URL to use:
+
+    - `preview_url`: 30-second mp3 playable by `expo-av` Audio.Sound — null for
+      tracks Spotify doesn't ship a preview for.
+    - `external_url`: opens the track in the Spotify app via Linking.openURL,
+      full song for Premium users. Always present when a Spotify match is found.
+    """
+
     rank: int
     title: str
     artist: str
     reason: str | None = None
+    preview_url: str | None = None
     external_url: str | None = None
 
 

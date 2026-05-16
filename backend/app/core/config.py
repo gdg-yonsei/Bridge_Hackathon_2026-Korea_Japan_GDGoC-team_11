@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
 
+    # --- Spotify ---
+    # Client Credentials Flow — no user OAuth required.
+    # https://developer.spotify.com/dashboard → Create app → copy ID/secret.
+    # Used to resolve Gemini-suggested songs to playable preview URLs and to
+    # power the standalone GET /songs/search endpoint.
+    spotify_client_id: str = ""
+    spotify_client_secret: str = ""
+
     # --- CORS ---
     # Comma-separated list of allowed origins. "*" allows all (dev convenience).
     # Production: set to your frontend domain(s), e.g.
