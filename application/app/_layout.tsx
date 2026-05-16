@@ -15,21 +15,28 @@ import { triggerAuthentication } from '@/hooks/useScreenLock';
 function ScreenLockGuard() {
   const theme = useTheme();
   const appState = useRef<AppStateStatus>(AppState.currentState);
+  const isAuthenticatingRef = useRef(false);
   const [isLocked, setIsLocked] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const tryUnlock = useCallback(async () => {
-    if (isAuthenticating) return;
-    setIsAuthenticating(true);
-    const ok = await triggerAuthentication();
-    setIsAuthenticating(false);
-    if (ok) setIsLocked(false);
-  }, [isAuthenticating]);
+    if (appState.current !== 'active' || isAuthenticatingRef.current) return;
 
-  // Auto-trigger auth whenever the overlay appears
+    isAuthenticatingRef.current = true;
+    setIsAuthenticating(true);
+    try {
+      const ok = await triggerAuthentication();
+      if (ok) setIsLocked(false);
+    } finally {
+      isAuthenticatingRef.current = false;
+      setIsAuthenticating(false);
+    }
+  }, []);
+
+  // Auto-trigger auth only while the app is foregrounded.
   useEffect(() => {
-    if (isLocked) tryUnlock();
-  }, [isLocked]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (isLocked && appState.current === 'active') tryUnlock();
+  }, [isLocked, tryUnlock]);
 
   // Cold start: check lock state on first mount
   useEffect(() => {
@@ -48,10 +55,14 @@ function ScreenLockGuard() {
         const enabled = await SecureStore.getItemAsync('screenLock');
         if (enabled === 'true') setIsLocked(true);
       }
+
+      if (next === 'active' && isLocked) {
+        tryUnlock();
+      }
     });
 
     return () => sub.remove();
-  }, []);
+  }, [isLocked, tryUnlock]);
 
   return (
     <Modal
