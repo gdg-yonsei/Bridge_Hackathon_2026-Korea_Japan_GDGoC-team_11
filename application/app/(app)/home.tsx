@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Image,
   ActivityIndicator, Animated, Dimensions,
@@ -6,7 +6,7 @@ import {
 
 import { Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { Screen } from '@/components/Screen';
 import { AppHeader, AppHeaderBg } from '@/components/AppHeader';
 import { diaryService, type CalendarEntry, type DiaryDetail } from '@/services/diaryService';
@@ -148,8 +148,7 @@ export default function HomeScreen() {
   const emotion = todayDetail?.emotion ?? todayEntry?.emotion ?? null;
   const accentColor = emotion ? EMOTION_COLORS[emotion] : theme.colors.primary;
 
-  // Re-fetch whenever the screen comes into focus (covers both create and update)
-  useFocusEffect(useCallback(() => {
+  useEffect(() => {
     diaryService.getMonth(TODAY.year, TODAY.month + 1)
       .then(data => {
         const entry = data[todayKey()] ?? null;
@@ -158,34 +157,10 @@ export default function HomeScreen() {
           diaryService.getDetail(entry.entry_id)
             .then(setTodayDetail)
             .catch(() => setTodayDetail(null));
-        } else {
-          setTodayDetail(null);
         }
       })
       .catch(() => setTodayEntry(null));
-  }, []));
-
-  // Poll while today's entry is pending/analyzing
-  useEffect(() => {
-    if (!todayEntry) return;
-    if (todayEntry.status !== 'pending' && todayEntry.status !== 'analyzing') return;
-
-    const INTERVAL = 3000;
-    const id = setInterval(async () => {
-      try {
-        const detail = await diaryService.getDetail(todayEntry.entry_id);
-        setTodayDetail(detail);
-        if (detail.status !== 'pending' && detail.status !== 'analyzing') {
-          setTodayEntry(prev => prev ? { ...prev, status: detail.status, emotion: detail.emotion } : prev);
-          clearInterval(id);
-        }
-      } catch {
-        // network blip — keep polling
-      }
-    }, INTERVAL);
-
-    return () => clearInterval(id);
-  }, [todayEntry?.entry_id, todayEntry?.status]);
+  }, []);
 
   const handleChat = async () => {
     if (!todayEntry) return;
@@ -204,7 +179,7 @@ export default function HomeScreen() {
       background={<AppHeaderBg backgroundColor={accentColor} />}
       edges={['top', 'left', 'right']}
     >
-      <AppHeader currentRoute="index" backgroundColor={accentColor} foregroundColor={onColor(accentColor)} />
+      <AppHeader currentRoute="home" backgroundColor={accentColor} foregroundColor={onColor(accentColor)} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 48 }}>
         {/* ── Hero card ─────────────────────────────── */}
@@ -238,7 +213,7 @@ export default function HomeScreen() {
             QUICK ACCESS
           </Text>
           <View style={styles.quickGrid}>
-            <QuickCard icon="calendar-month-outline" label="Calendar" color="#6750A4" onPress={() => router.push('/calendar')} />
+            <QuickCard icon="calendar-month-outline" label="Calendar" color="#6750A4" onPress={() => router.push('/')} />
             <QuickCard icon="chat-outline" label="Chat" color="#0284C7" onPress={() => router.push('/chat')} />
             <QuickCard icon="chart-bar" label="Report" color="#059669" onPress={() => router.push('/report')} />
             <QuickCard icon="account-heart-outline" label="Therapists" color="#DC2626" onPress={() => router.push('/therapists')} />

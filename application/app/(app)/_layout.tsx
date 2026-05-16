@@ -24,9 +24,17 @@ export default function AppLayout() {
         name="index"
         options={{
           title: 'Home',
+          tabBarIcon: ({ color, size }) => <TabIcon name="home-outline" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="calendar"
+        options={{
+          title: 'Calendar',
           tabBarIcon: ({ color, size }) => <TabIcon name="calendar-heart" color={color} size={size} />,
         }}
       />
+      <Tabs.Screen name="home" options={{ href: null }} />
       <Tabs.Screen
         name="write"
         options={{
@@ -46,6 +54,13 @@ export default function AppLayout() {
         options={{
           title: 'Chat',
           tabBarIcon: ({ color, size }) => <TabIcon name="chat-outline" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="therapists"
+        options={{
+          title: 'Therapists',
+          tabBarIcon: ({ color, size }) => <TabIcon name="account-heart-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen name="debug" options={{ href: null }} />

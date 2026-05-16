@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, Pressable, ActivityIndicator } from 'react-native';
-import { Text, useTheme, Surface, Menu, Divider } from 'react-native-paper';
+import { Text, useTheme, Surface } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/Screen';
+import { AppHeader, AppHeaderBg } from '@/components/AppHeader';
 import { chatService, type Conversation } from '@/services/chatService';
 import { diaryService, type CalendarEntry } from '@/services/diaryService';
 
@@ -27,8 +28,6 @@ export default function ChatHubScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ date?: string }>();
-  const [menuVisible, setMenuVisible] = useState(false);
-
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     if (params.date) {
       const d = new Date(params.date + 'T00:00:00');
@@ -90,32 +89,10 @@ export default function ChatHubScreen() {
 
   return (
     <Screen
-      background={<View style={[styles.headerBg, { backgroundColor: theme.colors.primary }]} />}
+      background={<AppHeaderBg />}
       edges={['top', 'left', 'right']}
     >
-      {/* ── Header ──────────────────────────────────── */}
-      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={
-            <Pressable onPress={() => setMenuVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text variant="titleLarge" style={{ fontWeight: '700', color: '#fff' }}>Chat</Text>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#fff" />
-            </Pressable>
-          }
-        >
-          <Menu.Item onPress={() => { setMenuVisible(false); router.replace('/'); }} title="Calendar" leadingIcon="calendar" />
-          <Divider />
-          <Menu.Item onPress={() => setMenuVisible(false)} title="Chat" leadingIcon="chat-outline" />
-          <Divider />
-          <Menu.Item onPress={() => { setMenuVisible(false); router.push('/report'); }} title="Report" leadingIcon="chart-bar" />
-        </Menu>
-
-        <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#fff" />
-        </Pressable>
-      </View>
+      <AppHeader currentRoute="chat" />
 
       {/* ── Date selector ───────────────────────────── */}
       <View style={[styles.datePicker, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.surfaceVariant, borderBottomWidth: 1 }]}>
@@ -233,7 +210,6 @@ export default function ChatHubScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerBg: { height: 80 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

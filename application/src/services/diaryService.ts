@@ -40,6 +40,10 @@ export type DiaryDetail = {
   status: DiaryStatus;
   emotion: Emotion | null;
   summary: string | null;
+  solis_message: string | null;
+  suggested_action: string | null;
+  crisis_score: number | null;
+  needs_hotline: boolean;
 };
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -66,16 +70,24 @@ export const diaryService = {
       status: DiaryStatus;
       primary_emotion?: Emotion | null;
       emotion_summary?: string | null;
+      solis_message?: string | null;
+      suggested_action?: string | null;
+      crisis_score?: number | null;
+      needs_hotline?: boolean;
     };
     const raw = await api.get<Raw>(`/diary/${entryId}`);
     return {
-      id:         raw.id,
-      entry_date: raw.entry_date,
-      title:      raw.title,
-      content:    raw.content,
-      status:     raw.status,
-      emotion:    toFrontendEmotion(raw.primary_emotion ?? null),
-      summary:    raw.emotion_summary ?? null,
+      id:               raw.id,
+      entry_date:       raw.entry_date,
+      title:            raw.title,
+      content:          raw.content,
+      status:           raw.status,
+      emotion:          toFrontendEmotion(raw.primary_emotion ?? null),
+      summary:          raw.emotion_summary ?? null,
+      solis_message:    raw.solis_message ?? null,
+      suggested_action: raw.suggested_action ?? null,
+      crisis_score:     raw.crisis_score ?? null,
+      needs_hotline:    raw.needs_hotline ?? false,
     };
   },
 

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Image, ActivityIndicator, Dimensions } from 'react-native';
-import { Text, useTheme, Menu, Divider, Button, Surface, Card } from 'react-native-paper';
+import { Text, useTheme, Button, Surface, Card } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { Screen } from '@/components/Screen';
+import { AppHeader, AppHeaderBg } from '@/components/AppHeader';
 import { useCreateReportMutation } from '@/store/api/reportApi';
 import { setCachedReport, clearCachedReport } from '@/store/slices/reportSlice';
 import { RootState } from '@/store';
@@ -24,8 +25,6 @@ const TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 export default function ReportScreen() {
   const theme = useTheme();
   const dispatch = useDispatch();
-  const [menuVisible, setMenuVisible] = useState(false);
-  
   const { cachedReport, savedAt } = useSelector((state: RootState) => state.report);
   const [report, setReport] = useState(cachedReport);
 
@@ -73,32 +72,10 @@ export default function ReportScreen() {
 
   return (
     <Screen
-      background={<View style={[styles.headerBg, { backgroundColor: theme.colors.primary }]} />}
+      background={<AppHeaderBg />}
       edges={['top', 'left', 'right']}
     >
-      {/* ── Header ─────────────────────────────────────── */}
-      <View style={[styles.header, { backgroundColor: theme.colors.primary, justifyContent: 'space-between' }]}>
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={
-            <Pressable onPress={() => setMenuVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text variant="titleLarge" style={{ fontWeight: '700', color: '#fff' }}>Report</Text>
-              <MaterialCommunityIcons name="chevron-right" size={24} color="#fff" />
-            </Pressable>
-          }
-        >
-          <Menu.Item onPress={() => { setMenuVisible(false); router.replace('/'); }} title="Calendar" leadingIcon="calendar" />
-          <Divider />
-          <Menu.Item onPress={() => { setMenuVisible(false); router.push('/chat'); }} title="Chat" leadingIcon="chat-outline" />
-          <Divider />
-          <Menu.Item onPress={() => setMenuVisible(false)} title="Report" leadingIcon="chart-bar" />
-        </Menu>
-
-        <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#fff" />
-        </Pressable>
-      </View>
+      <AppHeader currentRoute="report" />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* ── Period Selection ───────────────────────────── */}
@@ -230,7 +207,6 @@ export default function ReportScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerBg: { height: 80 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
