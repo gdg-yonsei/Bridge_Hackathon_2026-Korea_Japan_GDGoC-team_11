@@ -12,7 +12,7 @@ from app.models.diary import (
     DiaryUpdate,
 )
 from app.repository.diary_repo import DiaryRepository
-from app.services.diary_service import trigger_analysis
+from app.services.diary_analysis_service import trigger_analysis
 
 router = APIRouter()
 

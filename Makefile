@@ -1,33 +1,9 @@
-.PHONY: up down build logs ps backend-shell backend-sync backend-dev frontend-dev fmt
+.PHONY: backend down
 
-# --- Docker Compose ---
-up:
-	docker-compose up -d
+backend:
+	mkdir -p backend/logs
+	docker-compose up -d --build
+	docker-compose logs -f backend | tee backend/logs/backend_$(shell date +%Y%m%d_%H%M%S).log
 
 down:
 	docker-compose down
-
-build:
-	docker-compose build
-
-logs:
-	docker-compose logs -f
-
-ps:
-	docker-compose ps
-
-backend-shell:
-	docker-compose exec backend /bin/bash
-
-# --- Local dev (uv) ---
-backend-sync:
-	cd backend && uv sync
-
-backend-dev:
-	cd backend && uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-frontend-dev:
-	cd frontend && npm run dev
-
-fmt:
-	cd backend && uv run ruff format . && uv run ruff check --fix .

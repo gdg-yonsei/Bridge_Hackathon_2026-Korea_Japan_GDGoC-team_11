@@ -8,6 +8,20 @@ from app.models.emotion import EmotionAnalysisOut
 from app.models.song import SongRecOut
 
 
+class DiaryAnalysisLLMResult(BaseModel):
+    """Gemini structured output schema for diary emotion analysis."""
+
+    primary_emotion: Emotion
+    scores: dict[str, float] = Field(
+        ...,
+        description='Emotion scores summing to ~1.0, e.g. {"joy": 0.6, "sad": 0.1, ...}',
+    )
+    summary: str = Field(
+        ...,
+        description="One sentence summarising the emotional tone of the entry.",
+    )
+
+
 class DiaryCreate(BaseModel):
     entry_date: date
     title: str | None = Field(None, max_length=200)
