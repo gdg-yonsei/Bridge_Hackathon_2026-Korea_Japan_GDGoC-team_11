@@ -22,8 +22,31 @@ class Settings(BaseSettings):
     # --- LLM ---
     # Gemini drives chatbot, emotion classification, period reports, and
     # therapist matching. Get a key at https://aistudio.google.com/apikey
+    #
+    # Effective key pool = GEMINI_API_KEY (1) + GEMINI_API_KEYS (n), deduped.
+    # Each Gemini call round-robins across the pool, multiplying free-tier
+    # RPM/RPD by the pool size. Either var alone is fine; together is fine.
     gemini_api_key: str = ""
+    gemini_api_keys: str = ""
     gemini_model: str = "gemini-2.5-flash"
+
+    @property
+    def gemini_api_key_list(self) -> list[str]:
+        """Effective key pool — `GEMINI_API_KEY` first (legacy/primary), then
+        anything in the comma-separated `GEMINI_API_KEYS`. Whitespace stripped,
+        empty entries dropped, duplicates removed while preserving order."""
+        candidates: list[str] = []
+        if self.gemini_api_key:
+            candidates.append(self.gemini_api_key.strip())
+        if self.gemini_api_keys:
+            candidates.extend(k.strip() for k in self.gemini_api_keys.split(",") if k.strip())
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for key in candidates:
+            if key and key not in seen:
+                seen.add(key)
+                ordered.append(key)
+        return ordered
 
     # --- Spotify ---
     # Client Credentials Flow — no user OAuth required.
