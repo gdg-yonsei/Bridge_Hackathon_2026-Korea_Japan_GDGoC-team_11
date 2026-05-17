@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.enums import EMOTIONS, Emotion
-from app.core.gemini_client import get_gemini_client
+from app.core.gemini_client import generate_with_fallback
 from app.entity.diary_entry_entity import DiaryEntry
 from app.entity.report_entity import Report
 from app.models.report import ReportLLMResult
@@ -100,9 +100,7 @@ def _aggregate(
 
 def _call_gemini_for_summary(user_prompt: str) -> str:
     try:
-        client = get_gemini_client()
-        response = client.models.generate_content(
-            model=settings.gemini_model,
+        response = generate_with_fallback(
             contents=user_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_INSTRUCTION,

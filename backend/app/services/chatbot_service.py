@@ -15,9 +15,8 @@ from fastapi import HTTPException, status
 from google.genai import types
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.enums import MessageRole
-from app.core.gemini_client import get_gemini_client
+from app.core.gemini_client import generate_with_fallback
 from app.entity.conversation_entity import Conversation
 from app.entity.diary_entry_entity import DiaryEntry
 from app.entity.message_entity import Message
@@ -83,8 +82,7 @@ def send_message(
 
     history = _build_history(conversation)
     try:
-        response = get_gemini_client().models.generate_content(
-            model=settings.gemini_model,
+        response = generate_with_fallback(
             contents=history,
             config=types.GenerateContentConfig(
                 system_instruction=_build_system_prompt(diary),

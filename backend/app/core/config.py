@@ -22,8 +22,44 @@ class Settings(BaseSettings):
     # --- LLM ---
     # Gemini drives chatbot, emotion classification, period reports, and
     # therapist matching. Get a key at https://aistudio.google.com/apikey
+    #
+    # Effective key pool = GEMINI_API_KEY (1) + GEMINI_API_KEYS (n), deduped.
+    # Each Gemini call round-robins across the pool, multiplying free-tier
+    # RPM/RPD by the pool size. Either var alone is fine; together is fine.
     gemini_api_key: str = ""
+    gemini_api_keys: str = ""
     gemini_model: str = "gemini-2.5-flash"
+    # On 429 RESOURCE_EXHAUSTED from the primary model, the same call is
+    # retried once against this fallback. 2.0-flash has its own (separate)
+    # free-tier quota window so a 2.5-flash burst doesn't block the 2.0
+    # bucket. Set to empty string to disable fallback.
+    gemini_fallback_model: str = "gemini-2.0-flash"
+
+    @property
+    def gemini_api_key_list(self) -> list[str]:
+        """Effective key pool — `GEMINI_API_KEY` first (legacy/primary), then
+        anything in the comma-separated `GEMINI_API_KEYS`. Whitespace stripped,
+        empty entries dropped, duplicates removed while preserving order."""
+        candidates: list[str] = []
+        if self.gemini_api_key:
+            candidates.append(self.gemini_api_key.strip())
+        if self.gemini_api_keys:
+            candidates.extend(k.strip() for k in self.gemini_api_keys.split(",") if k.strip())
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for key in candidates:
+            if key and key not in seen:
+                seen.add(key)
+                ordered.append(key)
+        return ordered
+
+    # --- Spotify ---
+    # Client Credentials Flow — no user OAuth required.
+    # https://developer.spotify.com/dashboard → Create app → copy ID/secret.
+    # Used to resolve Gemini-suggested songs to playable preview URLs and to
+    # power the standalone GET /songs/search endpoint.
+    spotify_client_id: str = ""
+    spotify_client_secret: str = ""
 
     # --- CORS ---
     # Comma-separated list of allowed origins. "*" allows all (dev convenience).

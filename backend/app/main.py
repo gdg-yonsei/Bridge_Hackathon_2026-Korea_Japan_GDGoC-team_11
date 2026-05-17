@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 
-from app.api import auth, chat, diary, report, therapist
+from app.api import auth, chat, diary, report, song, therapist
 from app.core.config import settings
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 
@@ -35,6 +35,7 @@ app.include_router(diary.router, prefix="/diary", tags=["diary"])
 app.include_router(chat.router, prefix="/conversations", tags=["chat"])
 app.include_router(report.router, prefix="/reports", tags=["reports"])
 app.include_router(therapist.router)
+app.include_router(song.router)
 
 
 @app.get("/health")
