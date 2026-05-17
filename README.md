@@ -33,6 +33,35 @@ The gap between *noticing something is off* and *talking to a professional* is t
 
 ---
 
+## 📱 Mobile app
+
+React Native + Expo with file-based routing (`expo-router`). All screens
+live under [application/app/](application/app/).
+
+| Route group | Screen | Purpose |
+|---|---|---|
+| `(auth)` | `login` | Supabase Auth (email / password, i18n KR · JP · EN) |
+| `(app)` | `home` | Daily entry point — calendar tile, latest Solis reflection, suggested next action |
+| `(app)` | `calendar` | Month view with emotion-coloured tiles (polled while analysis is in-flight) |
+| `(app)` | `write` | Diary editor with live emotion bars (`/diary/preview` debounced) |
+| `(app)` | `report` | Period reports — mood chart, dominant emotion, narrative |
+| `(app)` | `chat/index` + `chat/[id]` | Solis chatbot list + per-conversation thread (animated typing, empty state) |
+| `(app)` | `therapists` + `therapists/[id]` | Filterable directory + detail; "Match me" calls `/therapist/match` |
+| `(app)` | `debug` | Developer-only diagnostics |
+| root | `settings` | Profile, language, app lock (`expo-local-authentication`) |
+
+Notable libraries:
+
+- `@supabase/supabase-js` — auth & session storage in `expo-secure-store`
+- `axios` — backend client with cancel-on-unmount to avoid stale detail responses
+- `react-hook-form` — form state for write / login
+- `expo-local-authentication` — biometric app lock at settings
+
+The frontend is in a separate workstream from this branch; the routes
+above match what the deployed backend exposes today.
+
+---
+
 ## 🎯 The 6-emotion model
 
 `joy · calm · comfort · sad · anxious · angry`
@@ -202,7 +231,12 @@ Passes 10 stages end-to-end:
 │           ├── therapist_service.py
 │           └── song_service.py
 │
-├── application/                      # React Native + Expo app
+├── application/                      # React Native + Expo app (expo-router)
+│   ├── app/                          # Routes: (auth)/login, (app)/{home,calendar,write,report,chat/[id],therapists/[id],debug}
+│   ├── App.tsx · app.json            # Expo entry & config (app name: Solis, scheme: bridge)
+│   ├── assets/                       # icons, splash, emotion artwork
+│   ├── package.json                  # @supabase/supabase-js, expo-router, expo-secure-store, …
+│   └── AGENTS.md · CLAUDE.md         # frontend-side coding rules
 │
 ├── Makefile                          # `make backend`, `make deploy`, …
 ├── PLAN.md                           # Initial design (some schema sections superseded)

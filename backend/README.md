@@ -9,7 +9,9 @@ Gemini · Spotify · Cloud Run.
 > truth for auth, profiles, diary entries, conversations, reports, and the
 > therapist directory.
 >
-> See [../README.md](../README.md) for the product overview.
+> The mobile app (React Native + Expo) consumes this backend at
+> `https://my-app-486682024571.asia-northeast3.run.app`. See [../README.md](../README.md)
+> for the product overview and [../application/](../application/) for the app.
 
 ---
 
