@@ -13,10 +13,10 @@ Two resilience layers
    multiplies free-tier RPM/RPD across the available keys.
 2. **Model fallback**: `generate_with_fallback(...)` tries the primary
    `gemini_model` first; on `429 RESOURCE_EXHAUSTED` it retries the same
-   call against `gemini_fallback_model` (default `gemini-1.5-flash`, which
-   has a much more generous free tier). The fallback also picks the next
-   key from the rotation pool, so we get a fresh key *and* a different
-   model in one swap.
+   call against `gemini_fallback_model` (default `gemini-2.0-flash`,
+   whose quota bucket is separate from 2.5-flash's). The fallback also
+   picks the next key from the rotation pool, so we get a fresh key
+   *and* a different model in one swap.
 
 Single-key, single-model mode (legacy `GEMINI_API_KEY` only, no fallback)
 still works — just leave the new env vars unset.
