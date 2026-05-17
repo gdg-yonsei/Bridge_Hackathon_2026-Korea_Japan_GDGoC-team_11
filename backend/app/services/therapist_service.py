@@ -14,8 +14,7 @@ from fastapi import HTTPException, status
 from google.genai import types
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
-from app.core.gemini_client import get_gemini_client
+from app.core.gemini_client import generate_with_fallback
 from app.entity.therapist_entity import Therapist
 from app.models.therapist import (
     TherapistMatch,
@@ -101,8 +100,7 @@ def _layer2_gemini_rank(
     )
 
     try:
-        response = get_gemini_client().models.generate_content(
-            model=settings.gemini_model,
+        response = generate_with_fallback(
             contents=user_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=THERAPIST_MATCH_SYSTEM,

@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_api_keys: str = ""
     gemini_model: str = "gemini-2.5-flash"
+    # On 429 RESOURCE_EXHAUSTED from the primary model, the same call is
+    # retried once against this fallback. 1.5-flash has a much more generous
+    # free-tier RPD (1500/day vs 2.5-flash's 20/day) so it almost always
+    # absorbs the burst. Set to empty string to disable fallback.
+    gemini_fallback_model: str = "gemini-1.5-flash"
 
     @property
     def gemini_api_key_list(self) -> list[str]:

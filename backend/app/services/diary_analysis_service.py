@@ -11,7 +11,7 @@ from google.genai import types
 
 from app.core.config import settings
 from app.core.enums import DiaryStatus
-from app.core.gemini_client import get_gemini_client
+from app.core.gemini_client import generate_with_fallback
 from app.db.database import SessionLocal
 from app.models.diary import DiaryAnalysisLLMResult, LiveEmotionResult
 from app.repository.diary_repo import DiaryRepository
@@ -34,9 +34,7 @@ def live_classify(content: str) -> LiveEmotionResult:
     No DB write, no Solis reflection fields. Optimised for short snippets
     sent on every debounced keystroke.
     """
-    client = get_gemini_client()
-    response = client.models.generate_content(
-        model=settings.gemini_model,
+    response = generate_with_fallback(
         contents=content,
         config=types.GenerateContentConfig(
             system_instruction=CLASSIFY_LIVE_SYSTEM,
@@ -53,9 +51,7 @@ def live_classify(content: str) -> LiveEmotionResult:
 
 def _call_gemini(title: str | None, content: str, entry_date: str) -> DiaryAnalysisLLMResult:
     prompt = f"Date: {entry_date}\nTitle: {title or '(no title)'}\n\n{content}"
-    client = get_gemini_client()
-    response = client.models.generate_content(
-        model=settings.gemini_model,
+    response = generate_with_fallback(
         contents=prompt,
         config=types.GenerateContentConfig(
             system_instruction=CLASSIFY_EMOTION_SYSTEM,

@@ -22,8 +22,7 @@ from typing import Any
 from google.genai import types
 from pydantic import BaseModel, Field
 
-from app.core.config import settings
-from app.core.gemini_client import get_gemini_client
+from app.core.gemini_client import generate_with_fallback
 from app.core.spotify_client import SpotifyError, search_track
 from app.models.diary import DiaryAnalysisLLMResult, SongOut
 from app.services.prompts import RECOMMEND_SONGS_SYSTEM
@@ -64,9 +63,7 @@ def _build_user_prompt(content: str, analysis: DiaryAnalysisLLMResult) -> str:
 
 
 def _gemini_suggest(content: str, analysis: DiaryAnalysisLLMResult) -> list[SongSuggestion]:
-    client = get_gemini_client()
-    response = client.models.generate_content(
-        model=settings.gemini_model,
+    response = generate_with_fallback(
         contents=_build_user_prompt(content, analysis),
         config=types.GenerateContentConfig(
             system_instruction=RECOMMEND_SONGS_SYSTEM,
